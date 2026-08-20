@@ -323,15 +323,237 @@ let currentReportLang = localStorage.getItem(REPORT_LANG_KEY) || "ar";
 let currentMomSeq = parseInt(localStorage.getItem(MOM_SEQ_KEY) || "18");
 let monthlySource = { name: "", type: "", text: "" };
 
+/* ===== SUTech HSE Default Initial Dataset (قاعدة البيانات الافتراضية للتشغيل الأول والـ Deploy) ===== */
+const DEFAULT_INITIAL_FINDINGS = [
+  {
+    id: 1718000001,
+    ncrNo: "SUT-HSE-NCR-10492",
+    area: "Engineering Workshops & FabLab",
+    dept: "Facilities & Maintenance Department",
+    finding: "غياب حواجز الوقاية الميكانيكية (Machine Guarding) على ماكينات القطع وتراكم مخلفات الرايش بالورش الهندسية.",
+    status: "Open",
+    priority: "High",
+    date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+    verifyDate: "",
+    requirement: "قانون العمل المصري 12 لسنة 2003 والمادة 211 / معايير OSHA 29 CFR 1910.212",
+    impact: "خطر جسيم: احتمال إصابات بتر أو جروح قطعية للمتدربين",
+    cause: "Maintenance deficiency & Inadequate machine guarding",
+    action: "تركيب حواجز حماية شفافة معتمدة ومفتاح إيقاف طوارئ (Emergency Stop) فوري",
+    category: "NCR",
+    caseType: "عدم مطابقة ومخالفة تشغيلية (Operational NCR)"
+  },
+  {
+    id: 1718000002,
+    ncrNo: "SUT-HSE-NCR-10488",
+    area: "Central Cafeteria & Food Court",
+    dept: "Student Life Department",
+    finding: "عدم تجديد الشهادات الصحية لـ 3 من العاملين بمطبخ الكافيتريا المركزية مع وجود تراكم دهون بمدخنة الهود.",
+    status: "In Progress",
+    priority: "Medium",
+    date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+    verifyDate: "",
+    requirement: "اشتراطات الهيئة القومية لسلامة الغذاء (NFSA) والقرار الوزاري 134 لسنة 2003",
+    impact: "مخاطر صحية وتلوث غذائي محتمل مع مخاطر حريق بالمدخنة",
+    cause: "Inadequate supervision & Delayed renewal",
+    action: "استخراج وتجديد الشهادات الصحية فوراً وتكليف شركة نظافة متخصصة لتطهير الهود",
+    category: "NCR",
+    caseType: "شهادات صحية للعاملين بالأغذية (Food Handlers Health Certificates)"
+  },
+  {
+    id: 1718000003,
+    ncrNo: "SUT-HSE-NCR-10475",
+    area: "Chemical & Energy Laboratories",
+    dept: "Laboratories Department",
+    finding: "نقص لوحات إرشادات السلامة (MSDS) بمخزن الكيماويات وعدم توفر حوض احتواء ثانوي (Spill Containment).",
+    status: "Closed",
+    priority: "High",
+    date: new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10),
+    verifyDate: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
+    requirement: "قانون البيئة رقم 4 لسنة 1994 ومعايير NFPA 45 لمعامل الكيماويات",
+    impact: "خطر تسرب كيميائي وانبعاثات ضارة",
+    cause: "Inadequate risk assessment",
+    action: "تم توفير صحائف أمان المواد MSDS وأحواض الاحتواء وتدريب مشرف المعمل",
+    category: "NCR",
+    caseType: "عدم مطابقة ومخالفة تشغيلية (Operational NCR)"
+  },
+  {
+    id: 1718000004,
+    ncrNo: "",
+    area: "Campus Transportation Terminal",
+    dept: "Transportation Department",
+    finding: "تجديد تراخيص وفحص دورة الفرامل والإطارات لأسطول حافلات نقل الطلاب (عدد 12 باص).",
+    status: "Closed",
+    priority: "High",
+    date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
+    verifyDate: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
+    requirement: "",
+    impact: "",
+    cause: "",
+    action: "",
+    category: "General",
+    caseType: "ترخيص حافلة نقل (Bus Licensing)",
+    caseNotes: "تم الانتهاء من الفحص الدوري بالمرور وتجديد وثائق التأمين الإجباري",
+    caseDate: new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10)
+  },
+  {
+    id: 1718000005,
+    ncrNo: "",
+    area: "University Clinic & First Aid Unit",
+    dept: "University Clinic (Physician)",
+    finding: "تجديد ترخيص سيارة الإسعاف المجهزة وفحص حقائب الإسعافات الأولية وأسطوانات الأكسجين.",
+    status: "Closed",
+    priority: "Critical",
+    date: new Date(Date.now() - 12 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() - 12 * 86400000).toISOString().slice(0, 10),
+    verifyDate: new Date(Date.now() - 12 * 86400000).toISOString().slice(0, 10),
+    requirement: "",
+    impact: "",
+    cause: "",
+    action: "",
+    category: "General",
+    caseType: "ترخيص سيارة إسعاف (Ambulance Licensing)",
+    caseNotes: "جاهزية سيارة الإسعاف 100% للطوارئ والفعاليات الجامعية",
+    caseDate: new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10)
+  },
+  {
+    id: 1718000006,
+    ncrNo: "",
+    area: "Main Campus Building",
+    dept: "HSE Department",
+    finding: "متابعة تجديد شهادة واشتراطات الحماية المدنية (Civil Defense Approval) وفحص شبكة الرشاشات التلقائية.",
+    status: "In Progress",
+    priority: "High",
+    date: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10),
+    photoBefore: "",
+    photoAfter: "",
+    target: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10),
+    verifyDate: "",
+    requirement: "",
+    impact: "",
+    cause: "",
+    action: "",
+    category: "General",
+    caseType: "موافقة / شهادة الدفاع المدني (Civil Defense Approval)",
+    caseNotes: "جاري المعاينة الميدانية مع مهندسي إدارة الحماية المدنية بالعاشر من رمضان",
+    caseDate: new Date().toISOString().slice(0, 10)
+  }
+];
+
+const DEFAULT_INITIAL_PTWS = [
+  {
+    id: 1718000101,
+    no: "SUT-PTW-2026-081",
+    type: "Hot Work (أعمال ساخنة ولحام)",
+    loc: "Engineering Workshop B - Metal Fabrication",
+    contractor: "Elsewedy Electrometer Contractor",
+    status: "Issued & Active",
+    start: new Date().toISOString().slice(0, 10) + " 08:00",
+    end: new Date().toISOString().slice(0, 10) + " 17:00",
+    sutOfficer: "Eng. Ibrahim Saeed",
+    contractorOfficer: "Eng. Ahmed Tarek"
+  },
+  {
+    id: 1718000102,
+    no: "SUT-PTW-2026-079",
+    type: "Working at Height (عمل على ارتفاع وسقالات)",
+    loc: "Building A - Facade Maintenance",
+    contractor: "Facilities Subcontractor",
+    status: "Under Review",
+    start: new Date().toISOString().slice(0, 10) + " 09:00",
+    end: new Date().toISOString().slice(0, 10) + " 16:00",
+    sutOfficer: "Eng. Youssef Mohamed",
+    contractorOfficer: "Safety Sup. Mahmoud"
+  }
+];
+
+const DEFAULT_INITIAL_TRAININGS = [
+  {
+    id: 1718000201,
+    topic: "خطة الإخلاء ومكافحة الحرائق الأولية واستخدام الطفايات (Fire Warden & Evacuation)",
+    date: new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10),
+    audience: "مشرفو المباني وممثلو الكليات والأمن الجامعي",
+    trainer: "Eng. Ibrahim Saeed & Eng. Youssef",
+    attendees: 38,
+    hours: 3.5
+  },
+  {
+    id: 1718000202,
+    topic: "السلامة الكيميائية والتعامل الآمن مع المواد الخطرة وصحائف MSDS",
+    date: new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10),
+    audience: "فنيو ومشرفو المعامل الهندسية والكيميائية",
+    trainer: "SUTech HSE Team",
+    attendees: 24,
+    hours: 2
+  }
+];
+
+const DEFAULT_INITIAL_INCIDENTS = [
+  {
+    id: 1718000301,
+    type: "Near-Miss (واقعة وشيكة)",
+    date: new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10) + " 11:30",
+    loc: "Parking Lot Area 2",
+    desc: "تحرك حافلة دون انتباه السائق أثناء عبور أحد الطلاب وتم استخدام آلة التنبيه والتوقف في الوقت المناسب دون أي إصابات."
+  },
+  {
+    id: 1718000302,
+    type: "First Aid (إسعافات أولية)",
+    date: new Date(Date.now() - 18 * 86400000).toISOString().slice(0, 10) + " 14:15",
+    loc: "FabLab Workshop",
+    desc: "خدش بسيط بيد أحد الطلاب أثناء التدريب العملي وتم التطهير والتضميد فوراً بالعيادة الطبية واستئناف اليوم الدراسي."
+  }
+];
+
 let findings = [];
 let incidents = [];
 let ptwList = [];
 let trainingSessions = [];
 
-try { findings = JSON.parse(localStorage.getItem("SUT_FINDINGS")) || []; } catch (e) { findings = []; }
-try { incidents = JSON.parse(localStorage.getItem("SUT_INCIDENTS")) || []; } catch (e) { incidents = []; }
-try { ptwList = JSON.parse(localStorage.getItem("SUT_PTW_LIST")) || []; } catch (e) { ptwList = []; }
-try { trainingSessions = JSON.parse(localStorage.getItem("SUT_TRAINING_SESSIONS")) || []; } catch (e) { trainingSessions = []; }
+try {
+  findings = JSON.parse(localStorage.getItem("SUT_FINDINGS"));
+} catch (e) { findings = null; }
+if (!findings || !Array.isArray(findings) || findings.length === 0) {
+  findings = DEFAULT_INITIAL_FINDINGS.slice();
+  try { localStorage.setItem("SUT_FINDINGS", JSON.stringify(findings)); } catch (e) {}
+}
+
+try {
+  incidents = JSON.parse(localStorage.getItem("SUT_INCIDENTS"));
+} catch (e) { incidents = null; }
+if (!incidents || !Array.isArray(incidents) || incidents.length === 0) {
+  incidents = DEFAULT_INITIAL_INCIDENTS.slice();
+  try { localStorage.setItem("SUT_INCIDENTS", JSON.stringify(incidents)); } catch (e) {}
+}
+
+try {
+  ptwList = JSON.parse(localStorage.getItem("SUT_PTW_LIST"));
+} catch (e) { ptwList = null; }
+if (!ptwList || !Array.isArray(ptwList) || ptwList.length === 0) {
+  ptwList = DEFAULT_INITIAL_PTWS.slice();
+  try { localStorage.setItem("SUT_PTW_LIST", JSON.stringify(ptwList)); } catch (e) {}
+}
+
+try {
+  trainingSessions = JSON.parse(localStorage.getItem("SUT_TRAINING_SESSIONS"));
+} catch (e) { trainingSessions = null; }
+if (!trainingSessions || !Array.isArray(trainingSessions) || trainingSessions.length === 0) {
+  trainingSessions = DEFAULT_INITIAL_TRAININGS.slice();
+  try { localStorage.setItem("SUT_TRAINING_SESSIONS", JSON.stringify(trainingSessions)); } catch (e) {}
+}
 
 let currentBeforePhoto = "";
 let currentAfterPhoto = "";
@@ -422,7 +644,7 @@ function initApp() {
     document.getElementById("saveAuditBtn").addEventListener("click", saveAuditNotes);
     document.getElementById("addAttendeeBtn").addEventListener("click", function () { addMomAttendeeRow(); });
     if (document.getElementById("addAllAttendeesBtn")) {
-      document.getElementById("addAllAttendeesBtn").addEventListener("click", addAllCommitteeMembers);
+      document.getElementById("addAllAttendeesBtn").addEventListener("click", function () { addAllCommitteeMembers(true); });
     }
     if (document.getElementById("clearAttendeesBtn")) {
       document.getElementById("clearAttendeesBtn").addEventListener("click", clearAllCommitteeAttendees);
@@ -434,7 +656,7 @@ function initApp() {
     document.getElementById("momPrintBtn").addEventListener("click", function () { printReport("momReportContainer"); });
 
     /* Prefill Committee Members */
-    addAllCommitteeMembers();
+    addAllCommitteeMembers(false);
 
     document.getElementById("runCodesBtn").addEventListener("click", function () { runAI("codes"); });
     document.getElementById("codesWordBtn").addEventListener("click", function () { downloadCurrentWord("codesReport"); });
@@ -588,7 +810,10 @@ function saveAuditNotes() {
 }
 
 function updateInteractiveCharts() {
-  if (typeof Chart === "undefined") return;
+  if (typeof Chart === "undefined") {
+    setTimeout(updateInteractiveCharts, 250);
+    return;
+  }
   var total = findings.length;
   var closed = findings.filter(function (x) { return x.status === "Closed"; }).length;
   var progress = findings.filter(function (x) { return x.status === "In Progress"; }).length;
@@ -603,43 +828,51 @@ function updateInteractiveCharts() {
 
   var ctxDonut = document.getElementById("statusDonutChart");
   if (ctxDonut) {
-    if (donutChartInstance) donutChartInstance.destroy();
-    donutChartInstance = new Chart(ctxDonut, {
-      type: "doughnut",
-      data: {
-        labels: ["Closed (مغلق ومحقق)", "In Progress (قيد المتابعة)", "Open (مفتوح للتنفيذ)"],
-        datasets: [{
-          data: total ? [closed, progress, open] : [0, 0, 1],
-          backgroundColor: total ? ["#059669", "#d97706", "#c00000"] : ["#e2e8f0", "#e2e8f0", "#e2e8f0"],
-          borderWidth: 3, borderColor: "#ffffff", hoverOffset: 3
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom", labels: { font: { family: "Cairo, Arial", size: 10.5 }, boxWidth: 12, padding: 12 } } },
-        cutout: "76%"
-      }
-    });
+    if (donutChartInstance) {
+      try { donutChartInstance.destroy(); } catch (e) {}
+    }
+    try {
+      donutChartInstance = new Chart(ctxDonut, {
+        type: "doughnut",
+        data: {
+          labels: ["Closed (مغلق ومحقق)", "In Progress (قيد المتابعة)", "Open (مفتوح للتنفيذ)"],
+          datasets: [{
+            data: total ? [closed, progress, open] : [0, 0, 1],
+            backgroundColor: total ? ["#059669", "#d97706", "#c00000"] : ["#e2e8f0", "#e2e8f0", "#e2e8f0"],
+            borderWidth: 3, borderColor: "#ffffff", hoverOffset: 3
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { font: { family: "Cairo, Arial", size: 10.5 }, boxWidth: 12, padding: 12 } } },
+          cutout: "76%"
+        }
+      });
+    } catch (e) { console.warn("Donut chart error:", e); }
   }
 
   var ctxBar = document.getElementById("riskBarChart");
   if (ctxBar) {
-    if (barChartInstance) barChartInstance.destroy();
-    barChartInstance = new Chart(ctxBar, {
-      type: "bar",
-      data: {
-        labels: ["Critical", "High", "Medium", "Low"],
-        datasets: [{ label: "عدد الملاحظات", data: [crit, high, med, low], backgroundColor: ["#7f1d1d", "#c00000", "#d97706", "#059669"], borderRadius: 6, barThickness: 16 }]
-      },
-      options: {
-        indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { stepSize: 1, font: { family: "Inter, Arial", size: 10 } } },
-          y: { grid: { display: false }, ticks: { font: { family: "Inter, Cairo", weight: "bold", size: 11 } } }
+    if (barChartInstance) {
+      try { barChartInstance.destroy(); } catch (e) {}
+    }
+    try {
+      barChartInstance = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+          labels: ["Critical", "High", "Medium", "Low"],
+          datasets: [{ label: "عدد الملاحظات", data: [crit, high, med, low], backgroundColor: ["#7f1d1d", "#c00000", "#d97706", "#059669"], borderRadius: 6, barThickness: 16 }]
+        },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { stepSize: 1, font: { family: "Inter, Arial", size: 10 } } },
+            y: { grid: { display: false }, ticks: { font: { family: "Inter, Cairo", weight: "bold", size: 11 } } }
+          }
         }
-      }
-    });
+      });
+    } catch (e) { console.warn("Bar chart error:", e); }
   }
 }
 
@@ -928,14 +1161,16 @@ function addMomAttendeeRow(preset) {
   updateAllMemberDropdowns();
 }
 
-function addAllCommitteeMembers() {
+function addAllCommitteeMembers(isUserClick) {
   var container = document.getElementById("momAttendeesList");
   if (!container) return;
   container.innerHTML = "";
   SUTECH_COMMITTEE_MEMBERS.forEach(function (m) {
     addMomAttendeeRow(m);
   });
-  showToast("success", "تمت إضافة جميع أعضاء اللجنة الـ 22 بنجاح");
+  if (isUserClick === true) {
+    showToast("success", "تمت إضافة جميع أعضاء اللجنة الـ 22 بنجاح");
+  }
 }
 
 function clearAllCommitteeAttendees() {
