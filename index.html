@@ -75,7 +75,8 @@
   <button data-tab="ptw"><i class="fa-solid fa-id-card-clip"></i> PTW & TBT</button>
   <button data-tab="training"><i class="fa-solid fa-graduation-cap"></i> Training Log</button>
   <button data-tab="incidents"><i class="fa-solid fa-triangle-exclamation"></i> Incident & Near-Miss</button>
-  <button data-tab="monthly"><i class="fa-solid fa-chart-column"></i> Monthly AI Report</button>
+  <button data-tab="risk_assessment"><i class="fa-solid fa-shield-halved"></i> Risk Assessment 5x5</button>
+  <button data-tab="monthly"><i class="fa-solid fa-chart-column"></i> Monthly Executive Report</button>
 </nav>
 
 <!-- DASHBOARD -->
@@ -106,21 +107,44 @@
     <div class="kpi red"><small>Closure Rate</small><strong id="kRate">0%</strong><span>نسبة الإغلاق الميداني</span></div>
   </div>
 
-  <div class="charts-grid">
+  <!-- Executive HSE Analytics Grid (Top Tier) -->
+  <div class="charts-grid-exec">
     <div class="chart-box">
-      <h4><i class="fa-solid fa-circle-notch" style="color:var(--green)"></i> موقف الإجراءات التصحيحية (CAPA Resolution)</h4>
+      <h4><i class="fa-solid fa-circle-check" style="color:#059669"></i> <span class="chart-title-text">موقف الإجراءات التصحيحية (CAPA Resolution)</span></h4>
       <div class="chart-canvas-wrap">
         <canvas id="statusDonutChart"></canvas>
         <div class="donut-center-metric">
           <strong id="donutCenterPct">0%</strong>
-          <small>نسبة المعالجة</small>
+          <small>نسبة الإغلاق</small>
         </div>
       </div>
     </div>
     <div class="chart-box">
-      <h4><i class="fa-solid fa-bars-staggered" style="color:var(--sut-navy)"></i> توزيع المخالفات حسب درجة الخطورة (Risk Severity Profile)</h4>
+      <h4><i class="fa-solid fa-layer-group" style="color:var(--sut-red)"></i> <span class="chart-title-text">مصفوفة درجات الخطورة (Risk Severity Matrix)</span></h4>
       <div class="chart-canvas-wrap">
         <canvas id="riskBarChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h4><i class="fa-solid fa-chart-pie" style="color:#7c3aed"></i> <span class="chart-title-text">تصنيف مجالات ومصادر الخطر (Hazard Domains)</span></h4>
+      <div class="chart-canvas-wrap">
+        <canvas id="hazardPolarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary Analytical Insights (Deep Dive) -->
+  <div class="charts-grid-secondary">
+    <div class="chart-box">
+      <h4><i class="fa-solid fa-building-circle-check" style="color:var(--sut-navy)"></i> <span class="chart-title-text">معدل الامتثال والإغلاق حسب الإدارة / القطاع (Departmental Compliance)</span></h4>
+      <div class="chart-canvas-wrap-tall">
+        <canvas id="deptBarChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h4><i class="fa-solid fa-chart-line" style="color:#0284c7"></i> <span class="chart-title-text">مؤشرات السلامة الاستباقية وساعات العمل الآمنة (Safety Trend &amp; Milestones)</span></h4>
+      <div class="chart-canvas-wrap-tall">
+        <canvas id="safetyTrendChart"></canvas>
       </div>
     </div>
   </div>
@@ -559,44 +583,55 @@
       <div class="field"><label>Permit No. (رقم التصريح)</label><input id="ptwNo" value="SUT-PTW-2026-001"></div>
       <div class="field"><label>Permit Type (نوع التصريح)</label>
         <select id="ptwType">
-          <option value="Hot Work Permit (Cutting, Welding & Grinding)">Hot Work Permit (Cutting, Welding & Grinding)</option>
-          <option value="Working at Height (Scaffolding, Man-lift & Ladders)">Working at Height (Scaffolding, Man-lift & Ladders)</option>
-          <option value="Electrical Isolation & LOTO System">Electrical Isolation & LOTO System</option>
-          <option value="Confined Space Entry Permit">Confined Space Entry Permit</option>
-          <option value="Chemical Handling & Hazardous Operations">Chemical Handling & Hazardous Operations</option>
-          <option value="General Cold Work & Maintenance">General Cold Work & Maintenance</option>
+          <option value="Hot Work Permit (Cutting, Welding & Grinding)">Hot Work Permit (Cutting, Welding & Grinding) - أعمال ساخنة ولحام</option>
+          <option value="Working at Height (Scaffolding, Man-lift & Ladders)">Working at Height (Scaffolding, Man-lift & Ladders) - العمل على ارتفاعات</option>
+          <option value="Electrical Isolation & LOTO System">Electrical Isolation & LOTO System - عزل كهربائي وفصل طاقة</option>
+          <option value="Confined Space Entry Permit">Confined Space Entry Permit - دخول الأماكن المغلقة</option>
+          <option value="Chemical Handling & Hazardous Operations">Chemical Handling & Hazardous Operations - تداول المواد الكيميائية</option>
+          <option value="General Cold Work & Maintenance">General Cold Work & Maintenance - أعمال صيانة عامة وباردة</option>
         </select>
       </div>
-      <div class="field"><label>Exact Location (الموقع)</label><input id="ptwLoc" placeholder="Fabrication Lab / Building Roof / Energy Lab / Kitchen"></div>
+      <div class="field">
+        <label><i class="fa-solid fa-language"></i> لغة التصريح (Permit Language)</label>
+        <select id="ptwLang">
+          <option value="en" selected>English (Official SUTech Permit Format)</option>
+          <option value="ar">العربية (النموذج الرسمي المعتمد لجامعة السويدي)</option>
+          <option value="both">Bilingual (English + العربية)</option>
+        </select>
+      </div>
     </div>
     
+    <div class="row row3">
+      <div class="field"><label>Exact Location (الموقع الدقيق)</label><input id="ptwLoc" placeholder="Fabrication Lab / Building Roof / Energy Lab / Kitchen" value="Fabrication Lab Workshop"></div>
+      <div class="field"><label>Performing Agency / Contractor (الجهة المنفذة)</label><input id="ptwContractor" placeholder="Maintenance Dept / External Contractor Co." value="University Maintenance Directorate"></div>
+      <div class="field"><label>Permit Status (الحالة)</label><select id="ptwStatus"><option value="Issued & Active">Issued & Active (ساري ومعتمد)</option><option value="Under Review">Under Review (قيد المراجعة)</option><option value="Closed & Handed Over">Closed & Handed Over (منتهي ومغلق)</option></select></div>
+    </div>
+
     <div class="row">
-      <div class="field"><label>Performing Agency / Contractor (الجهة المنفذة)</label><input id="ptwContractor" placeholder="Maintenance Dept / External Contractor Co."></div>
-      <div class="field"><label>Activity / Task Description (وصف العمل بالتفصيل)</label><input id="ptwDesc" placeholder="Describe the task and machinery clearly in English or Arabic..."></div>
+      <div class="field" style="flex:1"><label>Activity / Task Description (وصف العمل والمعدات بالتفصيل)</label><input id="ptwDesc" placeholder="Describe the task and machinery clearly in English or Arabic..." value="Welding steel frames, structural angle cutting and grinding using heavy power tools."></div>
     </div>
 
     <div class="row">
       <div class="field">
         <label><i class="fa-solid fa-user-shield" style="color:var(--blue)"></i> SUT HSE Representative (مسؤول السلامة من طرف الجامعة)</label>
-        <input id="ptwSutOfficer" placeholder="Eng. Safety Engineer">
+        <input id="ptwSutOfficer" placeholder="Eng. Safety Engineer" value="Eng. Ibrahim Saeed">
       </div>
       <div class="field">
         <label><i class="fa-solid fa-hard-hat" style="color:var(--amber)"></i> Contractor HSE Officer (مسؤول السلامة من طرف المقاول/الجهة المنفذة)</label>
-        <input id="ptwContractorOfficer" placeholder="Contractor Safety Officer / Supervisor Name">
+        <input id="ptwContractorOfficer" placeholder="Contractor Safety Officer / Supervisor Name" value="Eng. Youssef Mohamed">
       </div>
     </div>
 
-    <div class="row row3">
+    <div class="row">
       <div class="field"><label>Valid From (تاريخ وتوقيت البدء)</label><input id="ptwStart" type="datetime-local"></div>
       <div class="field"><label>Valid Until (تاريخ وتوقيت الانتهاء)</label><input id="ptwEnd" type="datetime-local"></div>
-      <div class="field"><label>Permit Status (الحالة)</label><select id="ptwStatus"><option value="Issued & Active">Issued & Active (ساري)</option><option value="Under Review">Under Review (قيد المراجعة)</option><option value="Closed & Handed Over">Closed & Handed Over (منتهي ومغلق)</option></select></div>
     </div>
     <div class="actions">
-      <button class="btn btn-sut" id="generatePtwBtn"><i class="fa-solid fa-wand-magic-sparkles"></i> Issue English PTW + TBT Document</button>
+      <button class="btn btn-sut" id="generatePtwBtn"><i class="fa-solid fa-file-contract"></i> إصدار وتوثيق تصريح العمل (Issue PTW + TBT Document)</button>
     </div>
   </div>
   <div id="ptwOutput" class="output hidden">
-    <div class="output-head"><b>Work Permit & TBT Document (English Standard)</b><div class="actions no-print"><button class="btn btn-dark" id="ptwWordBtn">Word</button><button class="btn btn-red" id="ptwPdfBtn">PDF</button><button class="btn btn-blue" id="ptwPrintBtn"><i class="fa-solid fa-print"></i> Print</button></div></div>
+    <div class="output-head"><b>Work Permit &amp; TBT Document (Official Standard)</b><div class="actions no-print"><button class="btn btn-dark" id="ptwWordBtn">Word</button><button class="btn btn-red" id="ptwPdfBtn">PDF / Print</button><button class="btn btn-blue" id="ptwPrintBtn"><i class="fa-solid fa-print"></i> Print</button></div></div>
     <div class="output-body" id="ptwReport"></div>
   </div>
 </section>
@@ -604,7 +639,7 @@
 <!-- TRAINING & TBT LOG -->
 <section id="training" class="panel">
   <div class="hero">
-    <h2>HSE Training & Toolbox Talk (TBT) Log — سجل التدريب والتوعية</h2>
+    <h2>HSE Training &amp; Toolbox Talk (TBT) Log — سجل التدريب والتوعية</h2>
     <p>توثيق الدورات التدريبية وجلسات التوعية الميدانية للعاملين ومشرفي المعامل وسائقي الحافلات والعاملين بالمطاعم.</p>
   </div>
   <div class="card">
@@ -632,8 +667,8 @@
 <!-- INCIDENTS & NEAR-MISS -->
 <section id="incidents" class="panel">
   <div class="hero">
-    <h2>Incident & Near-Miss Management — سجل الحوادث</h2>
-    <p>توثيق الحوادث والوقائع الوشيكة (Near-Miss) وحساب مؤشرات السلامة المهنية ومعدلات تكرار الإصابات.</p>
+    <h2>Incident &amp; Near-Miss Management — سجل الحوادث والإصابات</h2>
+    <p>توثيق الحوادث والوقائع الوشيكة (Near-Miss) وحساب مؤشرات السلامة المهنية مع تسجيل تفاصيل المصابين بدقة.</p>
   </div>
   <div class="kpis">
     <div class="kpi red"><small>Total Incidents</small><strong id="incTotal">0</strong><span>إجمالي الحوادث</span></div>
@@ -643,59 +678,352 @@
     <div class="kpi"><small>LTIFR</small><strong id="incLTIFR">0.00</strong><span>معدل تكرار الإصابات</span></div>
   </div>
   <div class="card">
-    <h3>تسجيل واقعة جديدة</h3>
+    <h3>تسجيل واقعة / حادث جديد</h3>
     <div class="row row3">
-      <div class="field"><label>نوع الواقعة</label>
+      <div class="field"><label>نوع الواقعة / التصنيف</label>
         <select id="incType">
-          <option>Near-Miss (واقعة وشيكة كادت تسبب حادث)</option>
-          <option>First Aid Case (إسعافات أولية)</option>
-          <option>Medical Treatment (علاج طبي)</option>
-          <option>Lost Time Injury (LTI - إصابة وقت ضائع)</option>
-          <option>Property / Equipment Damage (تلف ممتلكات أو معدات)</option>
-          <option>Vehicle / Bus Incident (واقعة خاصة بالباصات والمركبات)</option>
-          <option>Environmental Spill (انسكاب كيميائي/بيئي)</option>
+          <option value="Lost Time Injury (LTI - إصابة وقت ضائع)">Lost Time Injury (LTI - إصابة وقت ضائع)</option>
+          <option value="First Aid Case (إسعافات أولية)">First Aid Case (إسعافات أولية)</option>
+          <option value="Medical Treatment (علاج طبي)">Medical Treatment (علاج طبي)</option>
+          <option value="Near-Miss (واقعة وشيكة كادت تسبب حادث)">Near-Miss (واقعة وشيكة كادت تسبب حادث)</option>
+          <option value="Property / Equipment Damage (تلف ممتلكات أو معدات)">Property / Equipment Damage (تلف ممتلكات أو معدات)</option>
+          <option value="Vehicle / Bus Incident (واقعة خاصة بالباصات والمركبات)">Vehicle / Bus Incident (واقعة خاصة بالباصات والمركبات)</option>
+          <option value="Environmental Spill (انسكاب كيميائي/بيئي)">Environmental Spill (انسكاب كيميائي/بيئي)</option>
         </select>
       </div>
       <div class="field"><label>التاريخ والوقت</label><input id="incDate" type="datetime-local"></div>
-      <div class="field"><label>المكان / الموقع</label><input id="incLoc" placeholder="Workshop / Cafeteria / Parking / Energy Lab"></div>
+      <div class="field"><label>المكان / الموقع الدقيق</label><input id="incLoc" placeholder="Workshop / Physics Lab / Cafeteria / Parking / Energy Lab"></div>
     </div>
-    <div class="field"><label>تفاصيل ووصف الواقعة</label><textarea id="incDesc" placeholder="كيف حدثت الواقعة؟ وما الإجراء الفوري الذي تم اتخاذه؟"></textarea></div>
-    <div class="actions">
-      <button class="btn btn-red" id="addIncidentBtn"><i class="fa-solid fa-plus"></i> Log Incident</button>
+
+    <!-- Injured Person & Supervisor Details -->
+    <div class="row row3">
+      <div class="field">
+        <label><i class="fa-solid fa-user-injured" style="color:var(--sut-red)"></i> اسم المصاب (Injured Person Name - إن وجد)</label>
+        <input id="incInjuredName" placeholder="اسم المصاب بالكامل إن وجدت إصابة (أو لا يوجد)">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-id-badge"></i> صفة المصاب / الفئة</label>
+        <select id="incInjuredRole">
+          <option value="لا يوجد (واقعة مادية/وشيكة)">لا يوجد مصاب (واقعة وشيكة / تلف مادي)</option>
+          <option value="طالب (Student)">طالب (Student)</option>
+          <option value="فني مختبر / مهندس (Technician / Engineer)">فني مختبر / مهندس (Technician / Engineer)</option>
+          <option value="عامل مقاول / شركة خارجية (Contractor Worker)">عامل مقاول / شركة خارجية (Contractor Worker)</option>
+          <option value="عضو هيئة تدريس (Faculty Staff)">عضو هيئة تدريس (Faculty Staff)</option>
+          <option value="موظف إداري / خدمات (Staff / Services)">موظف إداري / خدمات (Staff / Services)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-bandage"></i> العضو المصاب ونوع الإصابة</label>
+        <select id="incBodyPart">
+          <option value="لا يوجد (Near-Miss / Material)">لا يوجد إصابة جسدية</option>
+          <option value="اليد والأصابع (Hands & Fingers)">اليد والأصابع (Hands & Fingers)</option>
+          <option value="العين والوجه (Eyes & Face)">العين والوجه (Eyes & Face)</option>
+          <option value="الرأس والجمجمة (Head & Skull)">الرأس والجمجمة (Head & Skull)</option>
+          <option value="الذراع والكتف (Arm & Shoulder)">الذراع والكتف (Arm & Shoulder)</option>
+          <option value="القدم والساق (Leg & Foot)">القدم والساق (Leg & Foot)</option>
+          <option value="الظهر والعمود الفقري (Back & Spine)">الظهر والعمود الفقري (Back & Spine)</option>
+          <option value="الجهاز التنفسي / استنشاق (Respiratory / Inhalation)">الجهاز التنفسي / استنشاق (Respiratory / Inhalation)</option>
+          <option value="حروق جلدية متعددة (Skin Burns)">حروق جلدية متعددة (Skin Burns)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label><i class="fa-solid fa-user-tie"></i> المشرف المباشر / الشاهد على الواقعة (Supervisor / Witness)</label>
+        <input id="incSupervisor" placeholder="اسم المشرف على الورشة أو الشاهد المباشر على الحادث">
+      </div>
+    </div>
+
+    <div class="field"><label>تفاصيل ووصف الواقعة وظروف الحدوث</label><textarea id="incDesc" rows="3" placeholder="كيف حدثت الواقعة؟ وما الإجراء الفوري والإسعاف الأولي الذي تم اتخاذه؟"></textarea></div>
+    <div class="actions" style="gap:10px">
+      <button class="btn btn-red" id="addIncidentBtn"><i class="fa-solid fa-plus"></i> تسجيل الحادث (Log Incident)</button>
+      <button class="btn btn-purple" id="openIncidentRcaBtn" type="button"><i class="fa-solid fa-diagram-project"></i> تحليل الأسباب الجذرية للواقعة (Incident Deep RCA)</button>
     </div>
   </div>
   <div class="card">
-    <h3>Incident Register</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3 style="margin:0">سجل الحوادث والإصابات المعتمد (Incident &amp; Injury Register)</h3>
+      <button class="btn btn-purple" id="openIncidentRcaBtn2" type="button" style="font-size:11px;padding:5px 12px">
+        <i class="fa-solid fa-brain-circuit"></i> Deep RCA Investigation
+      </button>
+    </div>
     <div id="incidentsTable"></div>
   </div>
 </section>
 
-<!-- MONTHLY AI REPORT -->
+<!-- RISK ASSESSMENT 5x5 -->
+<section id="risk_assessment" class="panel">
+  <div class="hero">
+    <h2><i class="fa-solid fa-shield-halved" style="color:var(--sut-red)"></i> 5x5 HSE Risk Assessment &amp; Job Hazard Analysis (JHA / HIRA)</h2>
+    <p>تقييم المخاطر المهنية المتقدم وفق مصفوفة المخاطر المعتمدة 5×5 (Likelihood 1-5 × Severity 1-5) مع توثيق المعدات والأماكن وتطبيق هرم التحكم في المخاطر (Hierarchy of Controls).</p>
+  </div>
+
+  <div class="card">
+    <h3><i class="fa-solid fa-pen-ruler"></i> مدخلات تقييم المخاطر والأثر البيئي الميداني (Risk &amp; Environmental Impact Inputs)</h3>
+    <div class="row row3">
+      <div class="field">
+        <label><i class="fa-solid fa-location-dot"></i> المكان / المختبر / القسم (Activity to be assessed / Location)</label>
+        <input id="riskArea" placeholder="e.g., Physics Lab / FabLab Workshop / Energy Lab / Central Kitchen" value="Physics Lab">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-gears"></i> الآلة / المعدة / الأجهزة (Machine &amp; Equipment)</label>
+        <input id="riskEquipment" placeholder="e.g., Electrical Test Benches, Power Supplies, Oscilloscopes, Capacitors" value="Electrical Test Benches, High-Voltage Power Supplies, Capacitors">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-users-gear"></i> الفئات المعرضة للخطر (Persons at Risk)</label>
+        <input id="riskPersons" placeholder="Students, Lab Technicians, Maintenance Staff" value="Students, Lab Technicians, Faculty Staff">
+      </div>
+    </div>
+
+    <div class="row row3">
+      <div class="field">
+        <label><i class="fa-solid fa-user-pen"></i> معد التقرير (Report Assessor)</label>
+        <input id="riskAssessor" placeholder="اسم معد التقرير" value="م. إبراهيم سعيد">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-user-check"></i> مراجع التقرير (Report Reviewer)</label>
+        <input id="riskReviewer" placeholder="اسم مراجع التقرير" value="م. يوسف محمد">
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-calendar-day"></i> تاريخ التقييم (Assessment Date)</label>
+        <input id="riskDate" type="date">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label><i class="fa-solid fa-clipboard-list"></i> النشاط أو المهمة الخاضعة للتقييم (Assessed Activity Scope)</label>
+        <input id="riskActivity" placeholder="e.g., Electrical Experiments, Equipment Operation & Capacitor Handling" value="Electrical Experiments, Equipment Operation, Laser Optics & Capacitor Handling">
+      </div>
+    </div>
+
+    <div class="field">
+      <label><i class="fa-solid fa-file-lines"></i> تفاصيل بيئة العمل والمعدات المتاحة (Workplace Context &amp; Details)</label>
+      <textarea id="riskLocationDesc" rows="3" placeholder="صف بدقة الأجهزة، التوصيلات، كابلات الكهرباء، الحماية الحالية، مفاتيح الطوارئ، تجارب الطلاب، ومصادر الخطر..."></textarea>
+    </div>
+
+    <!-- Multi-Photo Upload with Gallery Preview -->
+    <div class="row row3" style="align-items:flex-start">
+      <div class="field">
+        <label><i class="fa-solid fa-images"></i> صور الموقع والمعدات (Multiple Photos Upload)</label>
+        <input id="riskPhotos" type="file" accept="image/*" multiple>
+        <div id="riskPhotosGallery" class="risk-photos-gallery"></div>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-scale-balanced"></i> المرجع والمعيار الفني (HSE Standard)</label>
+        <select id="riskStandard">
+          <option value="osha">OSHA General Industry (29 CFR 1910) / Electrical Safety</option>
+          <option value="iso">ISO 45001:2018 &amp; ISO 14001:2015 (HIRA &amp; Environmental Aspect)</option>
+          <option value="eg_law">Egyptian Labor Law 12/2003 &amp; Ministerial Decree 211</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-language"></i> لغة التقييم (Report Language)</label>
+        <select id="riskLang">
+          <option value="en" selected>English (Official SUTech Format as per sample)</option>
+          <option value="ar">العربية (النموذج الرسمي المعتمد)</option>
+          <option value="both">Bilingual (English + العربية)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:14px;gap:10px;justify-content:flex-start">
+      <button class="btn btn-sut" id="generateRiskAssessmentBtn" type="button" style="font-size:13.5px;padding:11px 22px">
+        <i class="fa-solid fa-shield-halved"></i> توليد تقرير تقييم المخاطر والأثر البيئي (Generate Official Assessment)
+      </button>
+      <button class="btn btn-dark" id="addManualHazardBtn" type="button">
+        <i class="fa-solid fa-plus"></i> إضافة نشاط/خطر يدوياً
+      </button>
+      <button class="btn btn-light" id="clearRiskFormBtn" type="button" style="border:1px solid #cbd5e1;color:var(--sut-navy)">
+        <i class="fa-solid fa-eraser"></i> مسح الحقول
+      </button>
+    </div>
+  </div>
+
+  <!-- 5x5 Interactive Risk Matrix Visualizer -->
+  <div class="card" id="riskMatrixCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="margin:0"><i class="fa-solid fa-table-cells-large" style="color:var(--sut-red)"></i> مصفوفة تقييم المخاطر التفاعلية 5×5 (Interactive 5x5 Risk Matrix)</h3>
+      <div style="display:flex;gap:6px;font-size:11px;font-weight:700">
+        <span class="risk-level-badge low">Low (1-4)</span>
+        <span class="risk-level-badge medium">Medium (5-9)</span>
+        <span class="risk-level-badge high">High (10-14)</span>
+        <span class="risk-level-badge critical">Critical (15-25)</span>
+      </div>
+    </div>
+    <div class="risk-matrix-wrap">
+      <table class="risk-matrix-table" id="interactiveRiskMatrix">
+        <thead>
+          <tr>
+            <th style="background:#040d1a">الاحتمالية \ الشدة (L \ S)</th>
+            <th>1. ضئيل (Insignificant)</th>
+            <th>2. طفيف (Minor)</th>
+            <th>3. متوسط (Moderate)</th>
+            <th>4. جسيم (Major)</th>
+            <th>5. كارثي (Catastrophic)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>5. شبه مؤكد (Almost Certain)</th>
+            <td class="matrix-cell-med" data-l="5" data-s="1">5 (Med)<span class="matrix-hazard-count" id="cell_5_1">0</span></td>
+            <td class="matrix-cell-high" data-l="5" data-s="2">10 (High)<span class="matrix-hazard-count" id="cell_5_2">0</span></td>
+            <td class="matrix-cell-crit" data-l="5" data-s="3">15 (Crit)<span class="matrix-hazard-count" id="cell_5_3">0</span></td>
+            <td class="matrix-cell-crit" data-l="5" data-s="4">20 (Crit)<span class="matrix-hazard-count" id="cell_5_4">0</span></td>
+            <td class="matrix-cell-crit" data-l="5" data-s="5">25 (Crit)<span class="matrix-hazard-count" id="cell_5_5">0</span></td>
+          </tr>
+          <tr>
+            <th>4. مرجح (Likely)</th>
+            <td class="matrix-cell-low" data-l="4" data-s="1">4 (Low)<span class="matrix-hazard-count" id="cell_4_1">0</span></td>
+            <td class="matrix-cell-med" data-l="4" data-s="2">8 (Med)<span class="matrix-hazard-count" id="cell_4_2">0</span></td>
+            <td class="matrix-cell-high" data-l="4" data-s="3">12 (High)<span class="matrix-hazard-count" id="cell_4_3">0</span></td>
+            <td class="matrix-cell-crit" data-l="4" data-s="4">16 (Crit)<span class="matrix-hazard-count" id="cell_4_4">0</span></td>
+            <td class="matrix-cell-crit" data-l="4" data-s="5">20 (Crit)<span class="matrix-hazard-count" id="cell_4_5">0</span></td>
+          </tr>
+          <tr>
+            <th>3. محتمل (Possible)</th>
+            <td class="matrix-cell-low" data-l="3" data-s="1">3 (Low)<span class="matrix-hazard-count" id="cell_3_1">0</span></td>
+            <td class="matrix-cell-med" data-l="3" data-s="2">6 (Med)<span class="matrix-hazard-count" id="cell_3_2">0</span></td>
+            <td class="matrix-cell-med" data-l="3" data-s="3">9 (Med)<span class="matrix-hazard-count" id="cell_3_3">0</span></td>
+            <td class="matrix-cell-high" data-l="3" data-s="4">12 (High)<span class="matrix-hazard-count" id="cell_3_4">0</span></td>
+            <td class="matrix-cell-crit" data-l="3" data-s="5">15 (Crit)<span class="matrix-hazard-count" id="cell_3_5">0</span></td>
+          </tr>
+          <tr>
+            <th>2. غير مرجح (Unlikely)</th>
+            <td class="matrix-cell-low" data-l="2" data-s="1">2 (Low)<span class="matrix-hazard-count" id="cell_2_1">0</span></td>
+            <td class="matrix-cell-low" data-l="2" data-s="2">4 (Low)<span class="matrix-hazard-count" id="cell_2_2">0</span></td>
+            <td class="matrix-cell-med" data-l="2" data-s="3">6 (Med)<span class="matrix-hazard-count" id="cell_2_3">0</span></td>
+            <td class="matrix-cell-med" data-l="2" data-s="4">8 (Med)<span class="matrix-hazard-count" id="cell_2_4">0</span></td>
+            <td class="matrix-cell-high" data-l="2" data-s="5">10 (High)<span class="matrix-hazard-count" id="cell_2_5">0</span></td>
+          </tr>
+          <tr>
+            <th>1. نادر (Rare)</th>
+            <td class="matrix-cell-low" data-l="1" data-s="1">1 (Low)<span class="matrix-hazard-count" id="cell_1_1">0</span></td>
+            <td class="matrix-cell-low" data-l="1" data-s="2">2 (Low)<span class="matrix-hazard-count" id="cell_1_2">0</span></td>
+            <td class="matrix-cell-low" data-l="1" data-s="3">3 (Low)<span class="matrix-hazard-count" id="cell_1_3">0</span></td>
+            <td class="matrix-cell-low" data-l="1" data-s="4">4 (Low)<span class="matrix-hazard-count" id="cell_1_4">0</span></td>
+            <td class="matrix-cell-med" data-l="1" data-s="5">5 (Med)<span class="matrix-hazard-count" id="cell_1_5">0</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Risk Assessment Output & Register -->
+  <div id="riskAssessmentOutput" class="output hidden">
+    <div class="output-head">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="font-size:14px;color:var(--sut-navy)"><i class="fa-solid fa-shield-halved" style="color:var(--sut-red)"></i> SUTech 5x5 HSE Risk Assessment Register</b>
+        <span class="meta-badge"><i class="fa-solid fa-circle-check" style="color:#059669"></i> Approved HIRA Assessment</span>
+      </div>
+      <div class="actions no-print">
+        <button class="btn btn-dark" id="riskWordBtn"><i class="fa-solid fa-file-word"></i> Word</button>
+        <button class="btn btn-red" id="riskPdfBtn"><i class="fa-solid fa-file-pdf"></i> PDF / Print</button>
+        <button class="btn btn-blue" id="riskCsvBtn"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+        <button class="btn btn-light" id="riskPrintBtn" style="border:1px solid #cbd5e1;color:var(--sut-navy)"><i class="fa-solid fa-print"></i> طباعة</button>
+      </div>
+    </div>
+    <div class="output-body" id="riskAssessmentReport"></div>
+  </div>
+</section>
+
+<!-- MONTHLY EXECUTIVE REPORT -->
 <section id="monthly" class="panel">
   <div class="hero">
-    <h2>Monthly HSE Report — Source-Only Summarization</h2>
-    <p>ارفع ملف Word / PDF / PowerPoint / Excel. النظام يلخص المصدر الأصلي فقط دون اختراع أرقام أو بيانات غير موجودة.</p>
+    <h2><i class="fa-solid fa-file-signature" style="color:var(--sut-red)"></i> Monthly HSE Executive Performance &amp; Management Signals</h2>
+    <p>توليد التقرير التنفيذي الشامل وإشارات الإدارة الاستراتيجية استناداً إلى البيانات التشغيلية المباشرة المعتمدة للحرم الجامعي (المخالفات، البلاغات الوشيكة، تصاريح العمل، التدريب، وفحوصات الأسطول والأغذية) لتحديد أولويات وتوجيهات القيادة بدقة.</p>
   </div>
+
+  <!-- Live System Data Preview Banner -->
+  <div class="live-summary-banner" id="monthlyLiveBanner">
+    <div>
+      <div style="font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-database" style="color:#6ee7b7"></i>
+        <span>قاعدة البيانات التشغيلية الجاهزة للتحليل (Live System Database)</span>
+      </div>
+      <small style="opacity:0.85;font-size:11px">البيانات مجمعة لحظياً من سجلات الموقع والمخالفات والتصاريح والتدريب</small>
+    </div>
+    <div class="live-summary-badges">
+      <div class="live-badge-item"><i class="fa-solid fa-clipboard-list"></i> <span>الملاحظات:</span> <strong id="mBannerFindings">0</strong></div>
+      <div class="live-badge-item"><i class="fa-solid fa-circle-check"></i> <span>المغلق:</span> <strong id="mBannerClosed">0</strong></div>
+      <div class="live-badge-item"><i class="fa-solid fa-id-card-clip"></i> <span>تصاريح PTW:</span> <strong id="mBannerPtw">0</strong></div>
+      <div class="live-badge-item"><i class="fa-solid fa-triangle-exclamation"></i> <span>Near-Miss:</span> <strong id="mBannerNearMiss">0</strong></div>
+      <div class="live-badge-item"><i class="fa-solid fa-graduation-cap"></i> <span>متدربين:</span> <strong id="mBannerTrained">0</strong></div>
+    </div>
+  </div>
+
   <div class="card">
-    <div id="dropzone" class="dropzone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:#fafafa">
-      <i class="fa-solid fa-cloud-arrow-up" style="font-size:32px;color:var(--sut-red);margin-bottom:8px"></i>
-      <h3>Drop file here</h3>
-      <p class="small">PDF / DOCX / PPTX / XLSX / XLS / TXT</p>
-      <input id="monthlyFile" type="file" accept=".pdf,.docx,.pptx,.xlsx,.xls,.txt" hidden>
-      <div id="fileName" class="small" style="margin-top:6px;font-weight:bold"></div>
+    <div class="row row3">
+      <div class="field">
+        <label><i class="fa-solid fa-sliders"></i> مصدر البيانات (Data Scope)</label>
+        <select id="monthlyDataScope">
+          <option value="live_full" selected>⚡ بيانات النظام التشغيلية الشاملة (Live System Data)</option>
+          <option value="file_only">📁 ملف خارجي فقط (Uploaded Document Only)</option>
+          <option value="combined">⚡ + 📁 دمج بيانات النظام مع الملف المرفق (Combined)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-language"></i> لغة التقرير (Report Language)</label>
+        <select id="monthlyLang">
+          <option value="ar" selected>العربية (Arabic - التقرير المعتمد)</option>
+          <option value="en">English (Executive English Digest)</option>
+          <option value="both">Bilingual (العربية + English ثنائي اللغة)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label><i class="fa-solid fa-chart-line"></i> عمق وأسلوب التحليل (Analysis Depth)</label>
+        <select id="monthlyStyle">
+          <option value="executive_signals" selected>Executive Signals &amp; Root Causes (إشارات الإدارة والأسباب الجذرية)</option>
+          <option value="comprehensive_audit">Comprehensive Strategic HSE Audit (تدقيق استراتيجي شامل)</option>
+          <option value="action_roadmap">Operational Action Roadmap &amp; CAPA (خطة تصحيحية مركزة)</option>
+        </select>
+      </div>
     </div>
-    <div class="row" style="margin-top:12px">
-      <div class="field"><label>Report Language</label><select id="monthlyLang"><option value="both">Arabic + English</option><option value="en">English</option><option value="ar">Arabic</option></select></div>
-      <div class="field"><label>Output Style</label><select id="monthlyStyle"><option>Executive Dashboard</option><option>Detailed Management Report</option><option>PowerPoint Presentation</option></select></div>
+
+    <!-- Optional Document Dropzone -->
+    <div id="monthlyDropzoneWrap" style="margin-top:10px">
+      <div id="dropzone" class="dropzone" style="border:2px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:#fafafa">
+        <i class="fa-solid fa-cloud-arrow-up" style="font-size:26px;color:var(--sut-red);margin-bottom:6px"></i>
+        <h4 style="margin:0 0 4px;font-size:13px">ارفع ملف إضافي (اختياري) / Drop Additional HSE File (Optional)</h4>
+        <p class="small" style="margin:0">PDF / DOCX / PPTX / XLSX / XLS / TXT — لدمج تقارير الفحص الميداني أو العقود</p>
+        <input id="monthlyFile" type="file" accept=".pdf,.docx,.pptx,.xlsx,.xls,.txt" hidden>
+        <div id="fileName" class="small" style="margin-top:6px;font-weight:bold;color:var(--sut-navy)"></div>
+      </div>
+      <div id="sourcePreview" class="status" style="margin-top:8px">جاهز للتحليل المباشر من قاعدة بيانات النظام.</div>
     </div>
-    <div id="sourcePreview" class="status">لم يتم رفع ملف بعد.</div>
-    <div class="actions" style="margin-top:10px"><button id="monthlyBtn" class="btn btn-sut" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> Build Monthly Report</button></div>
+
+    <div class="actions" style="margin-top:14px;justify-content:flex-start;gap:10px">
+      <button id="generateLiveMonthlyBtn" class="btn btn-sut" style="font-size:13.5px;padding:11px 22px">
+        <i class="fa-solid fa-file-signature"></i> توليد التقرير التنفيذي وتوجيهات الإدارة (Generate Executive Signals Report)
+      </button>
+      <button id="monthlyBtn" class="btn btn-dark" disabled>
+        <i class="fa-solid fa-file-lines"></i> تلخيص المستند المرفق فقط
+      </button>
+      <button id="refreshDataScopeBtn" class="btn btn-light" style="color:var(--sut-navy);border:1px solid #cbd5e1">
+        <i class="fa-solid fa-arrows-rotate"></i> تحديث أرقام البيانات
+      </button>
+    </div>
   </div>
+
   <div id="monthlyOutput" class="output hidden">
-    <div class="output-head"><b>Monthly Management Dashboard</b><div class="actions no-print"><button class="btn btn-dark" id="monthlyWordBtn">Word</button><button class="btn btn-red" id="monthlyPdfBtn">PDF</button><button class="btn btn-blue" id="monthlyPptBtn"><i class="fa-solid fa-file-powerpoint"></i> PowerPoint</button><button class="btn btn-blue" id="monthlyPrintBtn"><i class="fa-solid fa-print"></i> Print</button></div></div>
+    <div class="output-head">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b style="font-size:14px;color:var(--sut-navy)"><i class="fa-solid fa-shield-halved" style="color:var(--sut-red)"></i> SUTech HSE Management Intelligence &amp; Directives Report</b>
+        <span id="monthlyGeneratedTimestamp" class="meta-badge"><i class="fa-solid fa-shield-check" style="color:#059669"></i> Verified Official Report</span>
+      </div>
+      <div class="actions no-print">
+        <button class="btn btn-dark" id="monthlyWordBtn"><i class="fa-solid fa-file-word"></i> Word</button>
+        <button class="btn btn-red" id="monthlyPdfBtn"><i class="fa-solid fa-file-pdf"></i> PDF / Print</button>
+        <button class="btn btn-blue" id="monthlyPptBtn"><i class="fa-solid fa-file-powerpoint"></i> PowerPoint</button>
+        <button class="btn btn-purple" id="monthlyCopyDigestBtn"><i class="fa-solid fa-copy"></i> نسخ ملخص الإدارة</button>
+        <button class="btn btn-light" id="monthlyPrintBtn" style="color:var(--sut-navy);border:1px solid #cbd5e1"><i class="fa-solid fa-print"></i> طباعة</button>
+      </div>
+    </div>
     <div class="output-body" id="monthlyReport"></div>
   </div>
 </section>
+
 
 </div>
 
@@ -946,6 +1274,115 @@
     <li><b>الحالات العامة (HSE General Cases):</b> تسجل حالات مثل التراخيص والإسعاف والدفاع المدني والتأمين — وهي ليست مخالفات NCR — وتظهر تلقائياً في التقرير الشهري والداشبورد.</li>
   </ol>
   <div class="actions" style="justify-content:flex-end;margin-top:15px"><button class="btn btn-dark" id="helpCloseBtn">Close</button></div>
+</div>
+</div>
+
+<!-- INCIDENT DEEP RCA INVESTIGATION MODAL -->
+<div class="modal" id="incidentRcaModal" style="display:none">
+<div class="modal-box" style="max-width:980px;width:95%;max-height:92vh;display:flex;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px">
+    <h3 style="margin:0;display:flex;align-items:center;gap:8px;font-size:16px;color:var(--sut-navy)">
+      <i class="fa-solid fa-diagram-project" style="color:var(--sut-red)"></i>
+      تحقيق الأسباب الجذرية المتقدم للحوادث (Incident Deep Root Cause Analysis)
+    </h3>
+    <button class="btn btn-dark" id="incidentRcaCloseBtn" type="button" style="padding:4px 10px;font-size:12px">&times; إغلاق</button>
+  </div>
+
+  <div class="rca-modal-body">
+    <!-- Input Form Card -->
+    <div class="card" style="background:#f8fafc;margin-bottom:12px">
+      <div class="row row3">
+        <div class="field">
+          <label><i class="fa-solid fa-triangle-exclamation"></i> اختر الواقعة المسجلة أو سيناريو جديد</label>
+          <select id="rcaIncidentSelect">
+            <option value="new">-- كتابة واقعة / سيناريو جديد --</option>
+          </select>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-sitemap"></i> منهجية التحليل المطلوبة (RCA Methodology)</label>
+          <select id="rcaMethodology">
+            <option value="auto" selected>⚡ الاختيار الذكي لأنسب أسلوب (Auto-Select Best Methodology)</option>
+            <option value="5whys">🔍 تحليل الأسباب الخمسة (5-Whys Analysis)</option>
+            <option value="fishbone">🐟 مخطط هيكل السمكة (Ishikawa 6M Fishbone)</option>
+            <option value="barrier">🛡️ نموذج فشل الحواجز والسيطرة (Barrier Failure Analysis)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-language"></i> لغة تقرير التحقيق (Report Language)</label>
+          <select id="rcaLang">
+            <option value="ar" selected>العربية (Arabic Official Investigation)</option>
+            <option value="en">English (Executive RCA Digest)</option>
+            <option value="both">Bilingual (العربية + English)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row row3">
+        <div class="field">
+          <label>نوع الحادث / التصنيف</label>
+          <input id="rcaIncidentType" placeholder="LTI / Medical Treatment / Near-Miss / Machine Entanglement">
+        </div>
+        <div class="field">
+          <label>الموقع / القسم / الورشة</label>
+          <input id="rcaLocation" placeholder="e.g., Engineering Workshop B / Energy Lab">
+        </div>
+        <div class="field">
+          <label>المعدات / الأدوات المشاركة في الواقعة</label>
+          <input id="rcaEquipment" placeholder="e.g., Circular Saw / Chemical Storage Tank / Forklift">
+        </div>
+      </div>
+
+      <!-- Injured Person Info in RCA -->
+      <div class="row row3">
+        <div class="field">
+          <label><i class="fa-solid fa-user-injured" style="color:var(--sut-red)"></i> اسم المصاب (إن وجد)</label>
+          <input id="rcaInjuredName" placeholder="اسم المصاب بالكامل إن وجدت إصابة">
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-bandage"></i> العضو المصاب ونوع الإصابة</label>
+          <input id="rcaBodyPart" placeholder="e.g., اليد والأصابع / العين والوجه / حروق">
+        </div>
+        <div class="field">
+          <label><i class="fa-solid fa-user-tie"></i> المشرف المباشر / الشاهد</label>
+          <input id="rcaSupervisor" placeholder="اسم المشرف المباشر">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>سرد تفاصيل الواقعة والظروف المصاحبة (Incident Event Details &amp; Sequence)</label>
+        <textarea id="rcaDescription" rows="3" placeholder="صف بدقة تسلسل الأحداث، تصرفات العاملين، الظروف البيئية، الإجراء الفوري، والإصابات أو التلفيات الناتجة..."></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>الأدوار والمسؤوليات المشاركة (Involved Personnel &amp; Roles)</label>
+          <input id="rcaInvolvedRoles" placeholder="e.g., Lab Technician, Workshop Supervisor, HSE Officer, External Contractor" value="Worker / Student, Lab Technician, HSE Officer, Department Supervisor">
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:10px;justify-content:flex-start;gap:10px">
+        <button class="btn btn-sut" id="runIncidentRcaBtn" type="button" style="font-size:13px;padding:10px 20px">
+          <i class="fa-solid fa-brain-circuit"></i> تشغيل التحليل الجذري وتحديد الأدوار (Run Deep RCA Analysis)
+        </button>
+      </div>
+    </div>
+
+    <!-- RCA Output Container -->
+    <div id="incidentRcaOutput" class="output hidden" style="margin-top:10px">
+      <div class="output-head">
+        <div style="display:flex;align-items:center;gap:8px">
+          <b style="font-size:14px;color:var(--sut-navy)"><i class="fa-solid fa-microscope" style="color:var(--sut-red)"></i> SUTech Official Incident Investigation &amp; RCA Report</b>
+          <span class="meta-badge"><i class="fa-solid fa-shield-check" style="color:#059669"></i> Verified Investigation</span>
+        </div>
+        <div class="actions no-print">
+          <button class="btn btn-dark" id="rcaWordBtn" type="button"><i class="fa-solid fa-file-word"></i> Word</button>
+          <button class="btn btn-red" id="rcaPdfBtn" type="button"><i class="fa-solid fa-file-pdf"></i> PDF / Print</button>
+          <button class="btn btn-light" id="rcaPrintBtn" type="button" style="border:1px solid #cbd5e1;color:var(--sut-navy)"><i class="fa-solid fa-print"></i> طباعة</button>
+        </div>
+      </div>
+      <div class="output-body" id="rcaReportInner"></div>
+    </div>
+  </div>
 </div>
 </div>
 
