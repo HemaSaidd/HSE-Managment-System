@@ -24,8 +24,13 @@
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
 <!-- External Stylesheet -->
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2.1">
 </head>
 
 <body>
@@ -47,8 +52,8 @@
   </div>
   
   <div class="header-actions">
-    <div style="display:flex;align-items:center;background:#ffffff18;padding:6px 12px;border-radius:9px;font-size:11px;color:#a7f3d0;gap:6px">
-      <i class="fa-solid fa-shield-halved" style="color:#10b981"></i> <span>SUT Secure Storage (Active)</span>
+    <div id="cloudSyncBadge" style="display:flex;align-items:center;background:#ffffff18;padding:6px 12px;border-radius:9px;font-size:11px;color:#a7f3d0;gap:6px;cursor:pointer" onclick="openSettings()" title="Firebase Live Cloud Sync">
+      <i class="fa-solid fa-cloud-bolt" style="color:#10b981" id="cloudSyncIcon"></i> <span id="cloudSyncText">Firebase Live (Connecting...)</span>
     </div>
     
     <div class="settings-container">
@@ -99,7 +104,7 @@
   </div>
 
   <div class="kpis">
-    <div class="kpi"><small>Total Findings</small><strong id="kTotal">0</strong><span>إجمالي الملاحظات</span></div>
+    <div class="kpi"><small>Total Findings (NCR)</small><strong id="kTotal">0</strong><span>إجمالي مخالفات عدم المطابقة (NCR)</span></div>
     <div class="kpi green"><small>Closed CAPA</small><strong id="kClosed">0</strong><span>تم الإغلاق والتحقق</span></div>
     <div class="kpi amber"><small>Active PTW</small><strong id="kActivePTW">0</strong><span>تصاريح عمل نشطة</span></div>
     <div class="kpi purple"><small>Near-Misses</small><strong id="kNearMiss">0</strong><span id="kNearMissSub">Target: 10 / Month</span></div>
@@ -126,7 +131,7 @@
       </div>
     </div>
     <div class="chart-box">
-      <h4><i class="fa-solid fa-chart-pie" style="color:#7c3aed"></i> <span class="chart-title-text">تصنيف مجالات ومصادر الخطر (Hazard Domains)</span></h4>
+      <h4><i class="fa-solid fa-chart-pie" style="color:#7c3aed"></i> <span class="chart-title-text">تصنيف وتوزيع مصادر الخطر الميدانية (Campus Operational Hazard Breakdown)</span></h4>
       <div class="chart-canvas-wrap">
         <canvas id="hazardPolarChart"></canvas>
       </div>
@@ -142,7 +147,7 @@
       </div>
     </div>
     <div class="chart-box">
-      <h4><i class="fa-solid fa-chart-line" style="color:#0284c7"></i> <span class="chart-title-text">مؤشرات السلامة الاستباقية وساعات العمل الآمنة (Safety Trend &amp; Milestones)</span></h4>
+      <h4><i class="fa-solid fa-chart-line" style="color:#0284c7"></i> <span class="chart-title-text">مؤشرات السلامة الاستباقية ومعدل الأداء (Proactive Safety &amp; Leading Indicators Trend)</span></h4>
       <div class="chart-canvas-wrap-tall">
         <canvas id="safetyTrendChart"></canvas>
       </div>
@@ -461,6 +466,11 @@
       </div>
     </div>
 
+    <div class="field">
+      <label><i class="fa-solid fa-note-sticky"></i> ملاحظات إضافية وتوجيهات (Notes & Directives)</label>
+      <input id="ncrNotes" placeholder="أي ملاحظات إضافية أو توجيهات متابعة خاصة بتقرير عدم المطابقة (اختياري)...">
+    </div>
+
     <div class="row">
       <div class="field"><label>Target Date for Closure (موعد الاستحقاق المطلوب للإصلاح)</label><input id="ncrTarget" type="date"></div>
       <div class="field"><label>Initial Status</label><input value="Open (مفتوح للتنفيذ)" readonly style="font-weight:800;color:var(--red)"></div>
@@ -759,6 +769,30 @@
     <p>تقييم المخاطر المهنية المتقدم وفق مصفوفة المخاطر المعتمدة 5×5 (Likelihood 1-5 × Severity 1-5) مع توثيق المعدات والأماكن وتطبيق هرم التحكم في المخاطر (Hierarchy of Controls).</p>
   </div>
 
+  <!-- Saved Risk Assessments Archive Selector -->
+  <div class="card" style="margin-bottom:14px;background:#f8fafc;border:1px solid #cbd5e1;padding:12px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <i class="fa-solid fa-folder-open" style="color:var(--sut-red);font-size:18px"></i>
+        <div>
+          <b style="color:var(--sut-navy);font-size:13px">سجل دراسات تقييم المخاطر المحفوظة (Saved Risk Assessments Archive)</b>
+          <small style="display:block;color:#64748b;font-size:11px">يمكنك استرجاع وعرض أي دراسة تقييم مخاطر سابقة تم حفظها بالنظام في أي وقت بكامل تفاصيلها وألوانها.</small>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select id="savedRiskSelect" style="padding:6px 10px;border-radius:6px;border:1px solid #cbd5e1;font-size:11.5px;max-width:320px;font-weight:600">
+          <option value="">-- اختر دراسة مخاطر محفوظة لعرضها واسترجاعها --</option>
+        </select>
+        <button class="btn btn-blue" type="button" id="loadSavedRiskBtn" style="padding:6px 12px;font-size:11.5px">
+          <i class="fa-solid fa-arrow-rotate-left"></i> عرض / استرجاع
+        </button>
+        <button class="btn btn-red" type="button" id="deleteSavedRiskBtn" style="padding:6px 12px;font-size:11.5px">
+          <i class="fa-solid fa-trash"></i> حذف
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h3><i class="fa-solid fa-pen-ruler"></i> مدخلات تقييم المخاطر والأثر البيئي الميداني (Risk &amp; Environmental Impact Inputs)</h3>
     <div class="row row3">
@@ -918,6 +952,7 @@
         <span class="meta-badge"><i class="fa-solid fa-circle-check" style="color:#059669"></i> Approved HIRA Assessment</span>
       </div>
       <div class="actions no-print">
+        <button class="btn btn-green" id="saveRiskBtn" type="button"><i class="fa-solid fa-floppy-disk"></i> حفظ التقييم بالنظام</button>
         <button class="btn btn-dark" id="riskWordBtn"><i class="fa-solid fa-file-word"></i> Word</button>
         <button class="btn btn-red" id="riskPdfBtn"><i class="fa-solid fa-file-pdf"></i> PDF / Print</button>
         <button class="btn btn-blue" id="riskCsvBtn"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
@@ -1219,6 +1254,87 @@
 </div>
 </div>
 
+<!-- EDIT PTW (PERMIT TO WORK) MODAL -->
+<div class="modal" id="editPtwModal">
+<div class="modal-box" style="max-width:700px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
+    <h3 style="margin:0;display:flex;align-items:center;gap:8px;color:var(--sut-navy);font-size:16px">
+      <i class="fa-solid fa-pen-to-square" style="color:var(--sut-red)"></i> تعديل بيانات تصريح العمل (Edit Permit to Work - PTW)
+    </h3>
+    <button type="button" onclick="closeEditPTWModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button>
+  </div>
+  
+  <input type="hidden" id="editPtwId">
+  
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-hashtag"></i> رقم التصريح (Permit No.):</label>
+      <input type="text" id="editPtwNo" placeholder="مثال: PTW-2026-001" required>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-shield-halved"></i> نوع العمل المصرح به (Work Type):</label>
+      <select id="editPtwType">
+        <option value="Hot Work (أعمال ساخنة ولحام)">🔥 Hot Work (أعمال ساخنة ولحام)</option>
+        <option value="Cold Work (أعمال عامة)">❄️ Cold Work (أعمال عامة)</option>
+        <option value="Work at Height (عمل على ارتفاعات)">🪜 Work at Height (عمل على ارتفاعات)</option>
+        <option value="Electrical Isolation (عزل وتحكم كهربائي)">⚡ Electrical Isolation (عزل وتحكم كهربائي)</option>
+        <option value="Confined Space Entry (أماكن مغلقة)">🚪 Confined Space Entry (أماكن مغلقة)</option>
+        <option value="Excavation & Trenching (حفر وتخندق)">🚜 Excavation & Trenching (حفر وتخندق)</option>
+        <option value="Heavy Lifting & Crane (رفع بالأوناش)">🏗️ Heavy Lifting & Crane (رفع بالأوناش)</option>
+        <option value="Chemical Handling (تداول مواد كيميائية)">🧪 Chemical Handling (تداول مواد كيميائية)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-location-dot"></i> الموقع / المبنى (Location):</label>
+      <input type="text" id="editPtwLoc" placeholder="المبنى، الطابق، المختبر..." required>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-building-user"></i> المقاول / القسم المنفذ (Contractor/Dept):</label>
+      <input type="text" id="editPtwContractor" placeholder="اسم الشركة المنفذة أو القسم..." required>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-circle-info"></i> حالة التصريح (Status):</label>
+      <select id="editPtwStatus">
+        <option value="Issued & Active">🟢 ساري ونشط (Issued & Active)</option>
+        <option value="Under Review">🟡 قيد المراجعة والتدقيق (Under Review)</option>
+        <option value="Closed & Handed Over">⚪ مغلق ومسلم رسمياً (Closed & Handed Over)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-calendar-days"></i> بداية الصلاحية (Start Time):</label>
+      <input type="text" id="editPtwStart" placeholder="YYYY-MM-DD HH:MM">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-clock"></i> نهاية الصلاحية (End Time):</label>
+      <input type="text" id="editPtwEnd" placeholder="YYYY-MM-DD HH:MM">
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-user-shield"></i> مسؤول السلامة المعتمد (SUT HSE Officer):</label>
+      <input type="text" id="editPtwSutOfficer" placeholder="اسم مهندس السلامة...">
+    </div>
+  </div>
+
+  <div class="field">
+    <label><i class="fa-solid fa-user-tie"></i> مشرف الموقع / المقاول (Contractor Supervisor):</label>
+    <input type="text" id="editPtwContractorOfficer" placeholder="اسم المشرف الميداني...">
+  </div>
+
+  <div class="actions" style="justify-content:flex-end;margin-top:14px;gap:8px">
+    <button type="button" class="btn" onclick="closeEditPTWModal()" style="background:#e2e8f0;color:#334155">إلغاء</button>
+    <button type="button" class="btn btn-sut" onclick="saveEditedPTW()"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات وتحديث النظام</button>
+  </div>
+</div>
+</div>
+
 <!-- SETTINGS -->
 <div class="modal" id="settings">
 <div class="modal-box">
@@ -1256,6 +1372,29 @@
       <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
     </select>
   </div>
+
+  <!-- FIREBASE CLOUD SYNC CARD -->
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px;margin:14px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <i class="fa-solid fa-fire-flame-curved" style="color:#ea580c;font-size:16px"></i>
+        <b style="color:#166534;font-size:13px">Firebase Cloud Database & Realtime Sync</b>
+      </div>
+      <span id="settingsFirebaseStatus" class="meta-badge" style="font-size:10px"><i class="fa-solid fa-circle-check"></i> Connected: sut-hse-system</span>
+    </div>
+    <p style="font-size:11px;color:#334155;margin:0 0 10px;line-height:1.5">
+      المنظومة متصلة سحابياً بقاعدة بيانات Firebase (Firestore &amp; Realtime DB). كافة السجلات (NCRs, PTWs, Incidents, Trainings) متزامنة لحظياً ويمكن فتحها وتعديلها من أي تطبيق أو جهاز آخر.
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-green" type="button" id="pushToFirebaseBtn" style="font-size:11px;padding:6px 12px">
+        <i class="fa-solid fa-cloud-arrow-up"></i> رفع كافة البيانات الحالية للسحابة (Push All to Cloud)
+      </button>
+      <button class="btn btn-blue" type="button" id="pullFromFirebaseBtn" style="font-size:11px;padding:6px 12px">
+        <i class="fa-solid fa-rotate"></i> سحب وتحديث من السحابة (Sync Now)
+      </button>
+    </div>
+  </div>
+
   <div class="actions" style="justify-content:flex-end;margin-top:12px">
     <button class="btn" id="settingsCancelBtn" style="background:#e2e8f0">Cancel</button>
     <button class="btn btn-sut" id="settingsSaveBtn">Save Settings</button>
@@ -1387,6 +1526,6 @@
 </div>
 
 <!-- External JavaScript -->
-<script src="script.js"></script>
+<script src="script.js?v=2.1"></script>
 </body>
 </html>

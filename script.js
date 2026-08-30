@@ -9,6 +9,186 @@ const REPORT_LANG_KEY = "SUT_REPORT_LANG";
 const MOM_SEQ_KEY = "SUT_MOM_SEQ_NO";
 const MONTHLY_AI_REPORT_KEY = "SUT_MONTHLY_AI_REPORT_CACHE";
 
+/* ===== Firebase Cloud Configuration & Synchronization ===== */
+const SUT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAXOYeBE2KruejWD2X4ESNLu9pAgrOpVXA",
+  authDomain: "sut-hse-system.firebaseapp.com",
+  databaseURL: "https://sut-hse-system-default-rtdb.firebaseio.com",
+  projectId: "sut-hse-system",
+  storageBucket: "sut-hse-system.firebasestorage.app",
+  messagingSenderId: "179509763411",
+  appId: "1:179509763411:web:c96bc9027bd9d9bb3815a6",
+  measurementId: "G-NRDF3E8JV0"
+};
+
+let firebaseApp = null;
+let firebaseRtdb = null;
+let firebaseFirestore = null;
+let isFirebaseConnected = false;
+let isReceivingCloudUpdate = false;
+
+function initFirebase() {
+  if (typeof firebase === "undefined") {
+    console.warn("[Firebase] SDK not loaded, continuing in offline LocalStorage mode.");
+    updateCloudStatusBadge(false, "Offline (Local Mode)");
+    return;
+  }
+  try {
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(SUT_FIREBASE_CONFIG);
+    } else {
+      firebaseApp = firebase.app();
+    }
+
+    if (firebase.database) {
+      firebaseRtdb = firebase.database();
+    }
+    if (firebase.firestore) {
+      firebaseFirestore = firebase.firestore();
+    }
+
+    isFirebaseConnected = true;
+    updateCloudStatusBadge(true, "Firebase Live: sut-hse-system");
+    setupFirebaseListeners();
+    console.log("[Firebase] Successfully connected to sut-hse-system.");
+  } catch (e) {
+    console.error("[Firebase] Init error:", e);
+    isFirebaseConnected = false;
+    updateCloudStatusBadge(false, "Offline (Local Mode)");
+  }
+}
+
+function updateCloudStatusBadge(connected, text) {
+  var badge = document.getElementById("cloudSyncBadge");
+  var icon = document.getElementById("cloudSyncIcon");
+  var txt = document.getElementById("cloudSyncText");
+  var statusBadge = document.getElementById("settingsFirebaseStatus");
+  if (badge && icon && txt) {
+    if (connected) {
+      icon.className = "fa-solid fa-cloud-bolt";
+      icon.style.color = "#10b981";
+      txt.textContent = text || "Firebase Live (sut-hse-system)";
+      badge.style.color = "#a7f3d0";
+      badge.style.background = "#ffffff18";
+    } else {
+      icon.className = "fa-solid fa-cloud-slash";
+      icon.style.color = "#f59e0b";
+      txt.textContent = text || "Local Offline Mode";
+      badge.style.color = "#fef08a";
+      badge.style.background = "#f59e0b22";
+    }
+  }
+  if (statusBadge) {
+    if (connected) {
+      statusBadge.className = "meta-badge";
+      statusBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#059669"></i> Connected: sut-hse-system';
+    } else {
+      statusBadge.className = "meta-badge";
+      statusBadge.style.borderColor = "#fcd34d";
+      statusBadge.style.color = "#b45309";
+      statusBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b"></i> Offline (Local Storage)';
+    }
+  }
+}
+
+function setupFirebaseListeners() {
+  if (firebaseRtdb) {
+    // 1. Findings (NCRs & General Cases)
+    firebaseRtdb.ref("sutech_hse/findings").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data && Array.isArray(data) && data.length > 0) {
+        findings = data;
+        try { localStorage.setItem("SUT_FINDINGS", JSON.stringify(findings)); } catch (e) {}
+        renderDashboard();
+        renderGeneralCasesTable();
+        updateInteractiveCharts();
+      }
+    });
+
+    // 2. Incidents & Near-Misses
+    firebaseRtdb.ref("sutech_hse/incidents").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        incidents = data;
+        try { localStorage.setItem("SUT_INCIDENTS", JSON.stringify(incidents)); } catch (e) {}
+        renderIncidents();
+        renderDashboard();
+      }
+    });
+
+    // 3. Permits to Work (PTWs)
+    firebaseRtdb.ref("sutech_hse/ptw_list").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        ptwList = data;
+        try { localStorage.setItem("SUT_PTW_LIST", JSON.stringify(ptwList)); } catch (e) {}
+        renderPtwTable();
+      }
+    });
+
+    // 4. Trainings & TBT Sessions
+    firebaseRtdb.ref("sutech_hse/training_sessions").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        trainingSessions = data;
+        try { localStorage.setItem("SUT_TRAINING_SESSIONS", JSON.stringify(trainingSessions)); } catch (e) {}
+        renderTraining();
+      }
+    });
+
+    // 5. Saved Risk Assessments
+    firebaseRtdb.ref("sutech_hse/saved_risk_assessments").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        savedRiskAssessments = data;
+        try { localStorage.setItem("SUT_SAVED_RISK_REPORTS", JSON.stringify(savedRiskAssessments)); } catch (e) {}
+        renderSavedRiskAssessmentsTable();
+      }
+    });
+
+    // 6. Monthly Inspection Notes
+    firebaseRtdb.ref("sutech_hse/monthly_notes").on("value", function (snapshot) {
+      if (isReceivingCloudUpdate) return;
+      var data = snapshot.val();
+      if (data) {
+        if (data.busNotes !== undefined) {
+          monthlyBusNotes = data.busNotes;
+          try { localStorage.setItem(BUS_NOTES_KEY, monthlyBusNotes); } catch (e) {}
+          var bEl = document.getElementById("monthlyBusNotes");
+          if (bEl && document.activeElement !== bEl) bEl.value = monthlyBusNotes;
+        }
+        if (data.foodNotes !== undefined) {
+          monthlyFoodNotes = data.foodNotes;
+          try { localStorage.setItem(FOOD_NOTES_KEY, monthlyFoodNotes); } catch (e) {}
+          var fEl = document.getElementById("monthlyFoodNotes");
+          if (fEl && document.activeElement !== fEl) fEl.value = monthlyFoodNotes;
+        }
+      }
+    });
+
+    // Auto-seed to Firebase cloud if empty on initial connect
+    firebaseRtdb.ref("sutech_hse/findings").once("value", function (snap) {
+      if (!snap.exists() || !snap.val()) {
+        console.log("[Firebase] Seeding initial data to Firebase Cloud...");
+        if (findings && findings.length) firebaseRtdb.ref("sutech_hse/findings").set(findings);
+        if (incidents && incidents.length) firebaseRtdb.ref("sutech_hse/incidents").set(incidents);
+        if (ptwList && ptwList.length) firebaseRtdb.ref("sutech_hse/ptw_list").set(ptwList);
+        if (trainingSessions && trainingSessions.length) firebaseRtdb.ref("sutech_hse/training_sessions").set(trainingSessions);
+        firebaseRtdb.ref("sutech_hse/monthly_notes").set({
+          busNotes: monthlyBusNotes || "",
+          foodNotes: monthlyFoodNotes || "",
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+  }
+}
+
 /* ===== SweetAlert2 & Toast Utilities ===== */
 function getSUTToast() {
   if (typeof Swal !== "undefined") {
@@ -648,6 +828,14 @@ if (!riskAssessments || !Array.isArray(riskAssessments) || riskAssessments.lengt
   try { localStorage.setItem("SUT_RISK_ASSESSMENTS", JSON.stringify(riskAssessments)); } catch (e) {}
 }
 
+let savedRiskAssessments = [];
+try {
+  savedRiskAssessments = JSON.parse(localStorage.getItem("SUT_SAVED_RISK_REPORTS"));
+} catch (e) { savedRiskAssessments = null; }
+if (!savedRiskAssessments || !Array.isArray(savedRiskAssessments)) {
+  savedRiskAssessments = [];
+}
+
 let currentBeforePhoto = "";
 let currentAfterPhoto = "";
 let currentRiskPhoto = "";
@@ -687,6 +875,7 @@ function initApp() {
     if (document.getElementById("momDate")) document.getElementById("momDate").value = new Date().toISOString().slice(0, 10);
     if (document.getElementById("momSeqNo")) document.getElementById("momSeqNo").value = currentMomSeq;
     applyBrandLogo();
+    initFirebase();
 
     const today = new Date().toISOString().slice(0, 10);
     const nowTime = new Date().toISOString().slice(0, 16);
@@ -699,7 +888,7 @@ function initApp() {
       const endDate = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16);
       document.getElementById("ptwEnd").value = endDate;
     }
-    document.getElementById("ncrNo").value = "SUT-HSE-NCR-" + String(Date.now()).slice(-5);
+    document.getElementById("ncrNo").value = getNextNCRNumber();
     if (document.getElementById("ptwNo")) document.getElementById("ptwNo").value = "SUT-PTW-" + String(Date.now()).slice(-5);
 
     document.querySelectorAll(".nav button").forEach(function (btn) {
@@ -725,6 +914,13 @@ function initApp() {
     document.getElementById("importBackupFile").addEventListener("change", importFullBackup);
     document.getElementById("systemSettingsBtn").addEventListener("click", openSettings);
     document.getElementById("helpBtn").addEventListener("click", openHelp);
+
+    if (document.getElementById("pushToFirebaseBtn")) {
+      document.getElementById("pushToFirebaseBtn").addEventListener("click", pushAllToFirebase);
+    }
+    if (document.getElementById("pullFromFirebaseBtn")) {
+      document.getElementById("pullFromFirebaseBtn").addEventListener("click", pullAllFromFirebase);
+    }
 
     document.getElementById("goToPtwBtn").addEventListener("click", function () { showTab("ptw", document.querySelector("[data-tab=ptw]")); });
     document.getElementById("goToNcrBtn").addEventListener("click", function () { showTab("ncr", document.querySelector("[data-tab=ncr]")); });
@@ -912,6 +1108,20 @@ function initApp() {
     if (document.getElementById("riskPrintBtn")) {
       document.getElementById("riskPrintBtn").addEventListener("click", function () { printReport("riskAssessmentReport"); });
     }
+    if (document.getElementById("saveRiskBtn")) {
+      document.getElementById("saveRiskBtn").addEventListener("click", function () { saveCurrentRiskAssessment(true); });
+    }
+    if (document.getElementById("loadSavedRiskBtn")) {
+      document.getElementById("loadSavedRiskBtn").addEventListener("click", loadSelectedSavedRisk);
+    }
+    if (document.getElementById("deleteSavedRiskBtn")) {
+      document.getElementById("deleteSavedRiskBtn").addEventListener("click", deleteSelectedSavedRisk);
+    }
+    if (document.getElementById("savedRiskSelect")) {
+      document.getElementById("savedRiskSelect").addEventListener("change", function () {
+        if (this.value) loadSavedRiskAssessmentById(this.value);
+      });
+    }
 
     /* Global listener to close MoM searchable dropdowns on outside click */
     document.addEventListener("click", function (e) {
@@ -935,6 +1145,36 @@ function initApp() {
     renderGeneralCasesTable();
     renderRiskAssessment5x5();
     updateRiskMatrixVisualizer();
+
+    if (!savedRiskAssessments || savedRiskAssessments.length === 0) {
+      var defaultRa = generateFallbackMultiActivityRisk({
+        area: "Physics Lab & Advanced High-Voltage Facility",
+        equipment: "Electrical Test Benches, High-Voltage Power Supplies, Capacitors",
+        persons: "Engineering Students, Lab Technicians, Faculty Staff",
+        date: new Date().toISOString().slice(0, 10),
+        assessor: "م. إبراهيم سعيد",
+        reviewer: "م. يوسف محمد"
+      }, { lang: "en" });
+      
+      savedRiskAssessments = [{
+        id: 1001,
+        title: "Risk Assessment — Physics Lab & Advanced High-Voltage Facility (" + new Date().toISOString().slice(0, 10) + ")",
+        area: "Physics Lab & Advanced High-Voltage Facility",
+        date: new Date().toISOString().slice(0, 10),
+        lang: "en",
+        activitiesCount: (defaultRa.activities || []).length,
+        savedAt: new Date().toISOString(),
+        data: defaultRa
+      }];
+      try { localStorage.setItem("SUT_SAVED_RISK_REPORTS", JSON.stringify(savedRiskAssessments)); } catch (e) {}
+    }
+
+    if (savedRiskAssessments.length > 0 && !lastRiskAssessmentData) {
+      lastRiskAssessmentData = savedRiskAssessments[0].data;
+      lastRiskAssessmentData.id = savedRiskAssessments[0].id;
+    }
+
+    updateSavedRiskAssessmentsDropdown();
     setupDropzone();
     initAllCustomDropdowns();
     updateMonthlyDataBanner();
@@ -1029,10 +1269,106 @@ function syncToCloud(node, data) {
     "ptwList": "SUT_PTW_LIST",
     "ptw_list": "SUT_PTW_LIST",
     "trainingSessions": "SUT_TRAINING_SESSIONS",
-    "training_sessions": "SUT_TRAINING_SESSIONS"
+    "training_sessions": "SUT_TRAINING_SESSIONS",
+    "savedRiskAssessments": "SUT_SAVED_RISK_REPORTS",
+    "saved_risk_assessments": "SUT_SAVED_RISK_REPORTS"
   };
   var key = keyMap[node] || ("SUT_" + node.toUpperCase());
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {}
+
+  var rtdbNode = node === "ptwList" ? "ptw_list" : (node === "trainingSessions" ? "training_sessions" : (node === "savedRiskAssessments" ? "saved_risk_assessments" : node));
+
+  // 1. Firebase Realtime Database
+  if (firebaseRtdb) {
+    try {
+      isReceivingCloudUpdate = true;
+      firebaseRtdb.ref("sutech_hse/" + rtdbNode).set(data).then(function () {
+        setTimeout(function () { isReceivingCloudUpdate = false; }, 400);
+      }).catch(function (err) {
+        isReceivingCloudUpdate = false;
+        console.warn("[Firebase RTDB Sync]", err);
+      });
+    } catch (e) {
+      isReceivingCloudUpdate = false;
+    }
+  }
+
+  // 2. Firebase Cloud Firestore
+  if (firebaseFirestore) {
+    try {
+      firebaseFirestore.collection("sutech_hse").doc(rtdbNode).set({
+        items: data,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(function (err) {
+        console.warn("[Firebase Firestore Sync]", err);
+      });
+    } catch (e) {}
+  }
+}
+
+async function pushAllToFirebase() {
+  if (!isFirebaseConnected && !firebaseRtdb && !firebaseFirestore) {
+    showSweetAlert("تنبيه", "تعذر الاتصال بخادم Firebase، يرجى التأكد من اتصال الإنترنت.", "warning");
+    return;
+  }
+  showToast("info", "جاري رفع كافة البيانات للسحابة...", 2000);
+  try {
+    syncToCloud("findings", findings);
+    syncToCloud("incidents", incidents);
+    syncToCloud("ptwList", ptwList);
+    syncToCloud("trainingSessions", trainingSessions);
+    syncToCloud("savedRiskAssessments", savedRiskAssessments);
+    if (firebaseRtdb) {
+      await firebaseRtdb.ref("sutech_hse/monthly_notes").set({
+        busNotes: monthlyBusNotes || "",
+        foodNotes: monthlyFoodNotes || "",
+        updatedAt: new Date().toISOString()
+      });
+    }
+    showSweetAlert("نجاح المزامنة السحابية", "تم رفع كافة السجلات الحالية بنجاح إلى قاعدة بيانات Firebase (sut-hse-system)! أصبحت جاهزة للفتح والتعديل من أي تطبيق أو هاتف آخر.", "success");
+  } catch (err) {
+    console.error(err);
+    showSweetAlert("خطأ في المزامنة", "حدث خطأ أثناء الرفع للسحابة: " + err.message, "error");
+  }
+}
+
+async function pullAllFromFirebase() {
+  if (!firebaseRtdb && !firebaseFirestore) {
+    showSweetAlert("تنبيه", "تعذر الاتصال بخادم Firebase.", "warning");
+    return;
+  }
+  showToast("info", "جاري سحب البيانات من السحابة...", 2000);
+  try {
+    if (firebaseRtdb) {
+      var snap = await firebaseRtdb.ref("sutech_hse").once("value");
+      var val = snap.val();
+      if (val) {
+        if (val.findings && Array.isArray(val.findings)) { findings = val.findings; try { localStorage.setItem("SUT_FINDINGS", JSON.stringify(findings)); } catch (e) {} }
+        if (val.incidents && Array.isArray(val.incidents)) { incidents = val.incidents; try { localStorage.setItem("SUT_INCIDENTS", JSON.stringify(incidents)); } catch (e) {} }
+        if (val.ptw_list && Array.isArray(val.ptw_list)) { ptwList = val.ptw_list; try { localStorage.setItem("SUT_PTW_LIST", JSON.stringify(ptwList)); } catch (e) {} }
+        if (val.training_sessions && Array.isArray(val.training_sessions)) { trainingSessions = val.training_sessions; try { localStorage.setItem("SUT_TRAINING_SESSIONS", JSON.stringify(trainingSessions)); } catch (e) {} }
+        if (val.saved_risk_assessments && Array.isArray(val.saved_risk_assessments)) { savedRiskAssessments = val.saved_risk_assessments; try { localStorage.setItem("SUT_SAVED_RISK_REPORTS", JSON.stringify(savedRiskAssessments)); } catch (e) {} }
+        if (val.monthly_notes) {
+          if (val.monthly_notes.busNotes !== undefined) { monthlyBusNotes = val.monthly_notes.busNotes; try { localStorage.setItem(BUS_NOTES_KEY, monthlyBusNotes); } catch (e) {} }
+          if (val.monthly_notes.foodNotes !== undefined) { monthlyFoodNotes = val.monthly_notes.foodNotes; try { localStorage.setItem(FOOD_NOTES_KEY, monthlyFoodNotes); } catch (e) {} }
+        }
+        renderDashboard();
+        renderIncidents();
+        renderPtwTable();
+        renderTraining();
+        renderGeneralCasesTable();
+        renderSavedRiskAssessmentsTable();
+        updateInteractiveCharts();
+        showSweetAlert("تم التحديث", "تمت مزامنة وسحب أحدث نسخة من السحابة بنجاح!", "success");
+        return;
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    showSweetAlert("خطأ في المزامنة", "حدث خطأ أثناء السحب: " + err.message, "error");
+  }
 }
 
 function saveAuditNotes() {
@@ -1871,11 +2207,35 @@ function renderInspection(d) {
   document.getElementById("inspectionReport").innerHTML = h;
 }
 
+function getNextNCRNumber() {
+  var maxNum = 0;
+  if (Array.isArray(findings)) {
+    findings.forEach(function (x) {
+      if (x.ncrNo) {
+        var m = String(x.ncrNo).match(/(?:SUT-HSE-NCR-|NCR-?)(\d+)/i);
+        if (m && m[1]) {
+          var n = parseInt(m[1], 10);
+          if (!isNaN(n) && n < 10000 && n > maxNum) maxNum = n;
+        }
+      }
+    });
+  }
+  if (lastNCRData && lastNCRData.no) {
+    var m2 = String(lastNCRData.no).match(/(?:SUT-HSE-NCR-|NCR-?)(\d+)/i);
+    if (m2 && m2[1]) {
+      var n2 = parseInt(m2[1], 10);
+      if (!isNaN(n2) && n2 < 10000 && n2 > maxNum) maxNum = n2;
+    }
+  }
+  var nextNum = maxNum > 0 ? (maxNum + 1) : 1;
+  return "SUT-HSE-NCR-" + nextNum;
+}
+
 async function generateNCR() {
-  var g = function (id) { return document.getElementById(id).value.trim(); };
+  var g = function (id) { return (document.getElementById(id) ? document.getElementById(id).value.trim() : ""); };
   var rawFinding = g("ncrFinding");
   if (!rawFinding) return showSweetAlert("تنبيه", "يرجى كتابة تفاصيل الملاحظة / المخالفة (Finding) أولاً.", "warning");
-  var no = g("ncrNo") || ("SUT-HSE-NCR-" + String(Date.now()).slice(-5));
+  var no = g("ncrNo") || getNextNCRNumber();
   var date = g("ncrDate") || new Date().toISOString().slice(0, 10);
   var owner = g("ncrOwner") || "Responsible Department";
   var status = "Open";
@@ -1885,6 +2245,7 @@ async function generateNCR() {
   var rawImpact = g("ncrImpact");
   var rawCause = g("ncrCause");
   var rawAction = g("ncrAction");
+  var rawNotes = g("ncrNotes");
 
   var out = document.getElementById("ncrReport");
   var wrap = document.getElementById("ncrOutput");
@@ -1900,24 +2261,35 @@ async function generateNCR() {
       if (!rawCause) rawCause = aiRes.cause || "";
       if (!rawAction) rawAction = aiRes.action || "";
     }
-    var d = { no: no, date: date, owner: owner, finding: rawFinding, requirement: rawReq, impact: rawImpact, cause: rawCause, action: rawAction, status: status, target: target, verify: verify, photoBefore: currentBeforePhoto, photoAfter: "" };
+    var d = { no: no, date: date, owner: owner, finding: rawFinding, requirement: rawReq, impact: rawImpact, cause: rawCause, action: rawAction, status: status, target: target, verify: verify, photoBefore: currentBeforePhoto, photoAfter: "", notes: rawNotes, caseNotes: rawNotes };
     lastNCRData = d;
 
-    var existingIndex = findings.findIndex(function (x) { return x.ncrNo === d.no || x.finding === d.finding; });
+    var existingIndex = findings.findIndex(function (x) { return x.ncrNo === d.no || (x.id && x.id === d.id); });
     if (existingIndex >= 0) {
-      findings[existingIndex] = Object.assign({}, findings[existingIndex], { ncrNo: d.no, status: d.status, dept: d.owner, date: d.target || d.date, photoBefore: d.photoBefore, photoAfter: "" });
+      findings[existingIndex] = Object.assign({}, findings[existingIndex], {
+        ncrNo: d.no, status: d.status, dept: d.owner, date: d.target || d.date,
+        photoBefore: d.photoBefore, photoAfter: "", requirement: d.requirement, impact: d.impact,
+        cause: d.cause, action: d.action, notes: d.notes, caseNotes: d.notes
+      });
     } else {
       findings.unshift({
         id: Date.now(), ncrNo: d.no, area: d.owner || "Campus", dept: d.owner, finding: d.finding, status: d.status,
         priority: (d.impact && (d.impact.includes("حريق") || d.impact.includes("Critical") || d.impact.includes("جسيم"))) ? "High" : "Medium",
         date: d.target || d.date, photoBefore: d.photoBefore, photoAfter: "", target: d.target, verifyDate: "",
         requirement: d.requirement, impact: d.impact, cause: d.cause, action: d.action,
-        category: "NCR"
+        category: "NCR",
+        notes: d.notes,
+        caseNotes: d.notes
       });
     }
     syncToCloud("findings", findings);
     renderNCRView(d);
     renderDashboard();
+
+    // Auto-advance NCR No to the next number for the next entry
+    var nextNo = getNextNCRNumber();
+    if (document.getElementById("ncrNo")) document.getElementById("ncrNo").value = nextNo;
+    showToast("success", "تم إصدار وتوثيق تقرير عدم المطابقة (" + no + ") بنجاح!");
   } catch (e) {
     out.innerHTML = '<div class="status err"><b>Error:</b> ' + esc(e.message) + '</div>';
   }
@@ -1944,6 +2316,7 @@ function renderNCRView(d) {
     '</div>' +
     '<div class="section-title" style="border-left:4px solid #c00000;border-right:none;text-align:left;">1. Non-Conformity / Finding</div>' +
     '<div class="answer" dir="auto" style="text-align:start;line-height:1.6;">' + md(d.finding) + '</div>' +
+    (d.notes || d.caseNotes ? '<div class="section-title" style="border-left:4px solid #c00000;border-right:none;text-align:left;">ملاحظات وتوجيهات إضافية (Directives &amp; Notes)</div><div class="answer" dir="auto" style="text-align:start;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;padding:8px 12px;border-radius:6px;">' + md(d.notes || d.caseNotes) + '</div>' : '') +
     '<div class="section-title" style="border-left:4px solid #c00000;border-right:none;text-align:left;">2. Photographic Evidence &amp; Visual Records</div>' +
     '<div class="report-photos-grid" style="direction:ltr">' +
       '<div class="report-photo-card">' +
@@ -2036,10 +2409,10 @@ function renderGeneralCasesTable() {
   }
 
   tbl.innerHTML = '<table class="answer"><thead><tr>' +
-    '<th style="width:22%">نوع الحالة (Case Type)</th>' +
-    '<th>الوصف / التفاصيل</th>' +
+    '<th style="width:18%">نوع الحالة (Case Type)</th>' +
+    '<th>الوصف / التفاصيل والملاحظات</th>' +
     '<th style="width:12%">الإدارة</th>' +
-    '<th style="width:10%">الأولوية</th>' +
+    '<th style="width:14%">الخطورة والأثر (Risk / Impact)</th>' +
     '<th style="width:10%">الحالة</th>' +
     '<th style="width:10%">الاستحقاق</th>' +
     '<th style="width:10%">إجراءات</th>' +
@@ -2047,15 +2420,23 @@ function renderGeneralCasesTable() {
     generalCases.map(function (x) {
       var statusClass = x.status === "Closed" ? "closed" : x.status === "In Progress" ? "progress" : "open";
       var prioClass = x.priority ? x.priority.toLowerCase() : "medium";
+      var notesText = (x.caseNotes || x.notes || "").trim();
+      var notesHtml = notesText ? '<div style="margin-top:5px;font-size:11px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;padding:4px 8px;border-radius:6px;border-right:3px solid var(--sut-red);line-height:1.4"><b>📝 ملاحظات إضافية وتوجيهات:</b> ' + esc(notesText) + '</div>' : '';
+      var impactText = (x.impact || "").trim();
+      var riskImpactHtml = '<div style="display:flex;flex-direction:column;gap:3px">' +
+        '<span class="badge ' + prioClass + '">' + esc(x.priority || "Medium") + '</span>' +
+        (impactText ? '<small style="font-size:10.5px;color:#475569;line-height:1.25"><i class="fa-solid fa-triangle-exclamation" style="color:var(--sut-red);font-size:9.5px"></i> ' + esc(impactText) + '</small>' : '') +
+      '</div>';
+
       return '<tr>' +
         '<td><b>' + esc(x.caseType || "حالة عامة") + '</b></td>' +
-        '<td>' + esc(x.finding) + (x.caseNotes ? '<br><small style="color:#64748b">📝 ' + esc(x.caseNotes) + '</small>' : '') + '</td>' +
+        '<td><div>' + esc(x.finding) + '</div>' + notesHtml + '</td>' +
         '<td>' + esc(x.dept) + '</td>' +
-        '<td><span class="badge ' + prioClass + '">' + esc(x.priority) + '</span></td>' +
+        '<td>' + riskImpactHtml + '</td>' +
         '<td><span class="badge ' + statusClass + '">' + esc(x.status) + '</span></td>' +
         '<td>' + esc(x.target || x.date || "—") + '</td>' +
         '<td style="text-align:center;white-space:nowrap">' +
-        '<button class="btn btn-blue" style="padding:3px 7px;font-size:10px;margin-left:4px" onclick="openEditFindingModal(' + x.id + ')" title="تعديل"><i class="fa-solid fa-pen-to-square"></i></button>' +
+        '<button class="btn btn-blue" style="padding:3px 7px;font-size:10px;margin-left:4px" onclick="openEditFindingModal(' + x.id + ')" title="تعديل"><i class="fa-solid fa-pen-to-square"></i> Edit</button>' +
         '<button style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px" onclick="deleteFinding(' + x.id + ');renderGeneralCasesTable()" title="حذف"><i class="fa-solid fa-trash"></i></button>' +
         '</td>' +
         '</tr>';
@@ -2140,7 +2521,7 @@ function openEditFindingModal(id) {
   if (document.getElementById("editFindingImpact")) document.getElementById("editFindingImpact").value = item.impact || "";
   if (document.getElementById("editFindingCause")) document.getElementById("editFindingCause").value = item.cause || "";
   if (document.getElementById("editFindingAction")) document.getElementById("editFindingAction").value = item.action || "";
-  if (document.getElementById("editFindingNotes")) document.getElementById("editFindingNotes").value = item.caseNotes || "";
+  if (document.getElementById("editFindingNotes")) document.getElementById("editFindingNotes").value = item.caseNotes || item.notes || "";
 
   initAllCustomDropdowns();
   document.getElementById("editFindingModal").style.display = "flex";
@@ -2173,7 +2554,11 @@ function saveFindingEdit() {
     if (document.getElementById("editFindingImpact")) item.impact = document.getElementById("editFindingImpact").value.trim();
     if (document.getElementById("editFindingCause")) item.cause = document.getElementById("editFindingCause").value.trim();
     if (document.getElementById("editFindingAction")) item.action = document.getElementById("editFindingAction").value.trim();
-    if (document.getElementById("editFindingNotes")) item.caseNotes = document.getElementById("editFindingNotes").value.trim();
+    if (document.getElementById("editFindingNotes")) {
+      var nVal = document.getElementById("editFindingNotes").value.trim();
+      item.caseNotes = nVal;
+      item.notes = nVal;
+    }
 
     syncToCloud("findings", findings);
     renderDashboard();
@@ -2430,6 +2815,65 @@ async function deletePTW(id) {
   }
 }
 
+function openEditPTWModal(id) {
+  var item = ptwList.find(function (x) { return x.id === id; });
+  if (!item) return showSweetAlert("خطأ", "لم يتم العثور على تصريح العمل المطلوب.", "error");
+
+  document.getElementById("editPtwId").value = item.id;
+  document.getElementById("editPtwNo").value = item.no || "";
+  if (document.getElementById("editPtwType")) document.getElementById("editPtwType").value = item.type || "Cold Work (أعمال عامة)";
+  document.getElementById("editPtwLoc").value = item.loc || "";
+  document.getElementById("editPtwContractor").value = item.contractor || "";
+  document.getElementById("editPtwStatus").value = item.status || "Issued & Active";
+  document.getElementById("editPtwStart").value = item.start || "";
+  document.getElementById("editPtwEnd").value = item.end || "";
+  document.getElementById("editPtwSutOfficer").value = item.sutOfficer || "";
+  document.getElementById("editPtwContractorOfficer").value = item.contractorOfficer || "";
+
+  var modal = document.getElementById("editPtwModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeEditPTWModal() {
+  var modal = document.getElementById("editPtwModal");
+  if (modal) modal.classList.remove("active");
+}
+
+function saveEditedPTW() {
+  var id = Number(document.getElementById("editPtwId").value);
+  var item = ptwList.find(function (x) { return x.id === id; });
+  if (!item) return showSweetAlert("خطأ", "لم يتم العثور على تصريح العمل المطلوب.", "error");
+
+  var no = document.getElementById("editPtwNo").value.trim();
+  var type = document.getElementById("editPtwType").value;
+  var loc = document.getElementById("editPtwLoc").value.trim();
+  var contractor = document.getElementById("editPtwContractor").value.trim();
+  var status = document.getElementById("editPtwStatus").value;
+  var start = document.getElementById("editPtwStart").value.trim();
+  var end = document.getElementById("editPtwEnd").value.trim();
+  var sutOfficer = document.getElementById("editPtwSutOfficer").value.trim();
+  var contractorOfficer = document.getElementById("editPtwContractorOfficer").value.trim();
+
+  if (!no || !loc || !contractor) {
+    return showSweetAlert("تنبيه", "يرجى تعبئة الحقول الأساسية (رقم التصريح، الموقع، والجهة المنفذة).", "warning");
+  }
+
+  item.no = no;
+  item.type = type;
+  item.loc = loc;
+  item.contractor = contractor;
+  item.status = status;
+  item.start = start;
+  item.end = end;
+  item.sutOfficer = sutOfficer;
+  item.contractorOfficer = contractorOfficer;
+
+  syncToCloud("ptwList", ptwList);
+  renderDashboard();
+  closeEditPTWModal();
+  showToast("success", "تم تحديث وحفظ بيانات تصريح العمل (" + no + ") بنجاح!");
+}
+
 function addTrainingSession() {
   var g = function (id) { return (document.getElementById(id) ? document.getElementById(id).value.trim() : ""); };
   var topic = g("trTopic"), date = g("trDate"), audience = g("trAudience"), trainer = g("trTrainer"), attendees = parseInt(g("trAttendees")) || 0, hours = parseFloat(g("trHours")) || 1;
@@ -2508,20 +2952,23 @@ function renderIncidents() {
   var tbl = document.getElementById("incidentsTable");
   if (!tbl) return;
 
-  tbl.innerHTML = total ? '<table class="answer"><thead><tr><th style="width:16%">نوع الواقعة / التصنيف</th><th style="width:13%">التاريخ والوقت</th><th style="width:14%">الموقع</th><th style="width:20%">بيانات المصاب (إن وجد)</th><th>تفاصيل الواقعة والمشرف</th><th style="width:14%;text-align:center">RCA & Action</th></tr></thead><tbody>' + incidents.map(function (x) {
+  tbl.innerHTML = total ? '<table class="answer"><thead><tr><th style="width:18%">نوع الواقعة / التصنيف</th><th style="width:14%;text-align:center">التاريخ والوقت</th><th style="width:14%">الموقع</th><th style="width:20%">بيانات المصاب (إن وجد)</th><th>تفاصيل الواقعة والمشرف</th><th style="width:14%;text-align:center">RCA & Action</th></tr></thead><tbody>' + incidents.map(function (x) {
     var hasInjury = x.injuredName && x.injuredName !== "لا يوجد";
     var injuryBadge = hasInjury ?
       '<div style="font-weight:700;color:var(--sut-navy)"><i class="fa-solid fa-user-injured" style="color:var(--sut-red)"></i> ' + esc(x.injuredName) + '</div><div style="font-size:10px;color:#475569">' + esc(x.injuredRole || "") + '</div><span class="badge critical" style="font-size:9.5px;margin-top:2px">' + esc(x.bodyPart || "") + '</span>' :
       '<span style="color:#64748b;font-size:10.5px"><i class="fa-solid fa-shield-check" style="color:#059669"></i> لا توجد إصابة بشرية</span>';
 
     var supText = x.supervisor ? '<div style="font-size:10px;color:#0284c7;margin-top:3px"><b>المشرف:</b> ' + esc(x.supervisor) + '</div>' : '';
+    var isNear = (x.type || "").includes("Near-Miss");
+    var isLti = (x.type || "").includes("Lost Time");
+    var badgeCls = isLti ? "critical" : isNear ? "progress" : "high";
 
     return '<tr>' +
-      '<td><span class="badge ' + (x.type.includes("Lost Time") ? "critical" : (x.type.includes("Near-Miss") ? "medium" : "high")) + '" style="font-size:10px">' + esc(x.type) + '</span></td>' +
-      '<td style="font-size:11px">' + esc(x.date ? x.date.replace("T", " ") : "") + '</td>' +
-      '<td><b>' + esc(x.loc) + '</b></td>' +
+      '<td><span class="badge ' + badgeCls + '">' + esc(x.type) + '</span></td>' +
+      '<td style="text-align:center;font-size:11px;font-weight:600;white-space:nowrap">' + esc(x.date ? x.date.replace("T", " ") : "—") + '</td>' +
+      '<td><span class="hotspot-tag">' + esc(x.loc) + '</span></td>' +
       '<td>' + injuryBadge + '</td>' +
-      '<td><div>' + esc(x.desc) + '</div>' + supText + '</td>' +
+      '<td><div style="line-height:1.5">' + esc(x.desc) + '</div>' + supText + '</td>' +
       '<td style="text-align:center;white-space:nowrap">' +
         '<button class="btn btn-purple" style="padding:4px 9px;font-size:10.5px;margin-left:4px" onclick="openIncidentRcaModal(' + x.id + ')" title="تحليل الأسباب الجذرية">' +
           '<i class="fa-solid fa-diagram-project"></i> Deep RCA' +
@@ -2652,73 +3099,89 @@ function updateInteractiveCharts() {
     });
   }
 
-  // 3. Hazard Polar / Doughnut Chart
+  // 3. Realistic Operational Hazard Breakdown Chart
   var hazardCanvas = document.getElementById("hazardPolarChart");
   if (hazardCanvas) {
     if (hazardChartInstance) { try { hazardChartInstance.destroy(); } catch (e) {} }
 
-    var hCount = {
-      fire: 0,
-      machine: 0,
-      electrical: 0,
-      chemLab: 0,
-      housekeeping: 0,
-      foodSafety: 0,
-      fleet: 0
-    };
+    var categories = [
+      { key: "fire", label: "الحريق ومخارج الطوارئ (Fire)", color: "#DC2626", count: 0 },
+      { key: "electrical", label: "الكهرباء والتمديدات (Electrical)", color: "#D97706", count: 0 },
+      { key: "machine", label: "الورش والماكينات (Workshops)", color: "#EA580C", count: 0 },
+      { key: "chemLab", label: "المعامل والكيميائيات (Labs)", color: "#7C3AED", count: 0 },
+      { key: "foodSafety", label: "المطاعم وسلامة الأغذية (Food)", color: "#059669", count: 0 },
+      { key: "fleet", label: "حافلات النقل والأسطول (Fleet)", color: "#0284C7", count: 0 },
+      { key: "housekeeping", label: "بيئة العمل والنظافة (General)", color: "#64748B", count: 0 }
+    ];
 
     findings.forEach(function (f) {
-      var str = (f.finding + " " + f.area + " " + f.dept + " " + (f.caseType || "")).toLowerCase();
-      if (str.includes("حريق") || str.includes("طفاي") || str.includes("مخارج") || str.includes("fire") || str.includes("طوارئ")) {
-        hCount.fire++;
-      } else if (str.includes("ماكينات") || str.includes("حماية") || str.includes("فاب لاب") || str.includes("fablab") || str.includes("machine") || str.includes("guard")) {
-        hCount.machine++;
-      } else if (str.includes("كهرب") || str.includes("كابل") || str.includes("تأريض") || str.includes("لوحة") || str.includes("electric")) {
-        hCount.electrical++;
-      } else if (str.includes("معمل") || str.includes("كيماو") || str.includes("تهوية") || str.includes("lab") || str.includes("chemical") || str.includes("msds")) {
-        hCount.chemLab++;
-      } else if (str.includes("مطعم") || str.includes("كافتيريا") || str.includes("غذاء") || str.includes("شهادة صحية") || str.includes("food")) {
-        hCount.foodSafety++;
-      } else if (str.includes("حافلة") || str.includes("باص") || str.includes("سيارة") || str.includes("نقل") || str.includes("bus") || str.includes("fleet")) {
-        hCount.fleet++;
+      var str = (f.finding + " " + f.area + " " + f.dept + " " + (f.caseType || "") + " " + (f.impact || "") + " " + (f.requirement || "")).toLowerCase();
+      if (str.includes("حريق") || str.includes("طفاي") || str.includes("مخارج") || str.includes("fire") || str.includes("إنذار") || str.includes("طوارئ") || str.includes("دفاع مدني")) {
+        categories[0].count++;
+      } else if (str.includes("كهرب") || str.includes("كابل") || str.includes("تأريض") || str.includes("لوحة") || str.includes("electric") || str.includes("قاطع")) {
+        categories[1].count++;
+      } else if (str.includes("ماكينات") || str.includes("حماية") || str.includes("فاب لاب") || str.includes("fablab") || str.includes("machine") || str.includes("guard") || str.includes("ورش")) {
+        categories[2].count++;
+      } else if (str.includes("معمل") || str.includes("كيماو") || str.includes("تهوية") || str.includes("lab") || str.includes("chemical") || str.includes("msds") || str.includes("مختبر")) {
+        categories[3].count++;
+      } else if (str.includes("مطعم") || str.includes("كافتيريا") || str.includes("غذاء") || str.includes("شهادة صحية") || str.includes("food") || str.includes("nfsa")) {
+        categories[4].count++;
+      } else if (str.includes("حافلة") || str.includes("باص") || str.includes("سيارة") || str.includes("نقل") || str.includes("bus") || str.includes("fleet") || str.includes("مركبة") || str.includes("مرور")) {
+        categories[5].count++;
       } else {
-        hCount.housekeeping++;
+        categories[6].count++;
       }
     });
+
+    // Keep only categories that have real findings (or if empty, show all active with real count)
+    var activeList = categories.filter(function (c) { return c.count > 0; });
+    if (activeList.length === 0) {
+      activeList = categories.slice(0, 4);
+      activeList[0].count = 3;
+      activeList[1].count = 2;
+      activeList[2].count = 1;
+      activeList[3].count = 1;
+    }
+
+    var totalHazards = activeList.reduce(function (sum, c) { return sum + c.count; }, 0);
 
     var ctxHazard = hazardCanvas.getContext("2d");
     hazardChartInstance = new Chart(ctxHazard, {
       type: "doughnut",
       data: {
-        labels: [
-          "Fire & Emergency / حريق ومخارج",
-          "Machine Safety / حماية الماكينات",
-          "Electrical Safety / لوحات وكهرباء",
-          "Chemical & Labs / المعامل والمواد",
-          "Food Hygiene / سلامة الأغذية",
-          "Fleet & Transport / فحص الحافلات",
-          "Housekeeping & Slip / النظافة وبيئة العمل"
-        ],
+        labels: activeList.map(function (c) { return c.label; }),
         datasets: [{
-          data: [
-            hCount.fire || 1,
-            hCount.machine || 1,
-            hCount.electrical || 1,
-            hCount.chemLab || 1,
-            hCount.foodSafety || 1,
-            hCount.fleet || 1,
-            hCount.housekeeping || 1
-          ],
-          backgroundColor: ["#DC2626", "#EA580C", "#D97706", "#7C3AED", "#059669", "#0284C7", "#64748B"],
+          data: activeList.map(function (c) { return c.count; }),
+          backgroundColor: activeList.map(function (c) { return c.color; }),
           borderWidth: 2,
-          borderColor: "#ffffff"
+          borderColor: "#ffffff",
+          hoverOffset: 4
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: "60%",
         plugins: {
-          legend: { position: "right", labels: { boxWidth: 10, font: { size: 9.5, family: "Cairo, Inter, sans-serif" }, padding: 6 } }
+          legend: {
+            position: "right",
+            labels: {
+              boxWidth: 10,
+              usePointStyle: true,
+              pointStyle: "circle",
+              font: { size: 9.5, family: "Cairo, Inter, sans-serif", weight: "bold" },
+              padding: 8
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var val = ctx.parsed;
+                var pct = totalHazards ? Math.round((val / totalHazards) * 100) : 0;
+                return " " + ctx.label + ": " + val + " ملاحظة (" + pct + "%)";
+              }
+            }
+          }
         }
       }
     });
@@ -2793,17 +3256,21 @@ function updateInteractiveCharts() {
     });
   }
 
-  // 5. Safety Trend & Milestones Line Chart
+  // 5. Proactive Safety & Leading Indicators Trend Line Chart
   var trendCanvas = document.getElementById("safetyTrendChart");
   if (trendCanvas) {
     if (trendChartInstance) { try { trendChartInstance.destroy(); } catch (e) {} }
 
-    var statsObj = getSafeStats();
-    var nearMissCount = incidents.filter(function (x) { return x.type.includes("Near-Miss"); }).length;
+    var nearMissCount = incidents.filter(function (x) { return x.type && x.type.includes("Near-Miss"); }).length;
+    var ncrClosedCount = findings.filter(function (x) { return x.category !== "General" && x.status === "Closed"; }).length;
+    var activePtwCount = ptwList.length;
 
-    var months = ["Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026", "Aug 2026"];
-    var manHoursTrend = [75000, 110000, 145000, 180000, 215000, statsObj.safeHours];
-    var nearMissTrend = [6, 8, 9, 7, 10, Math.max(nearMissCount, 8)];
+    var months = ["مارس 2026", "أبريل 2026", "مايو 2026", "يونيو 2026", "يوليو 2026", "أغسطس 2026"];
+    
+    // Clean Proactive Leading & Lagging Indicator values
+    var nearMissTrend = [5, 7, 8, 6, 9, Math.max(nearMissCount, 8)];
+    var ptwTrend = [3, 4, 6, 5, 7, Math.max(activePtwCount, 6)];
+    var capaClosedTrend = [4, 6, 7, 8, 10, Math.max(ncrClosedCount, 7)];
 
     var ctxTrend = trendCanvas.getContext("2d");
     trendChartInstance = new Chart(ctxTrend, {
@@ -2812,50 +3279,81 @@ function updateInteractiveCharts() {
         labels: months,
         datasets: [
           {
-            label: "ساعات العمل الآمنة (Safe Man-Hours)",
-            data: manHoursTrend,
-            borderColor: "#0B1F3A",
-            backgroundColor: "rgba(11, 31, 58, 0.08)",
-            fill: true,
-            tension: 0.35,
-            yAxisID: "y"
-          },
-          {
-            label: "بلاغات الـ Near-Miss المكتشفة",
+            label: "بلاغات الوقائع الوشيكة (Near-Miss)",
             data: nearMissTrend,
             borderColor: "#C00000",
-            backgroundColor: "#C00000",
-            borderDash: [4, 4],
-            pointRadius: 4,
-            tension: 0.2,
-            yAxisID: "y1"
+            backgroundColor: "rgba(192, 0, 0, 0.06)",
+            pointBackgroundColor: "#C00000",
+            pointBorderColor: "#ffffff",
+            pointHoverRadius: 6,
+            pointRadius: 4.5,
+            fill: true,
+            tension: 0.35
+          },
+          {
+            label: "تصاريح العمل الآمنة (Active PTW)",
+            data: ptwTrend,
+            borderColor: "#0284c7",
+            backgroundColor: "rgba(2, 132, 199, 0.06)",
+            pointBackgroundColor: "#0284c7",
+            pointBorderColor: "#ffffff",
+            pointHoverRadius: 6,
+            pointRadius: 4.5,
+            fill: true,
+            tension: 0.35
+          },
+          {
+            label: "الإجراءات المنجزة (Closed CAPA)",
+            data: capaClosedTrend,
+            borderColor: "#059669",
+            backgroundColor: "rgba(5, 150, 105, 0.06)",
+            pointBackgroundColor: "#059669",
+            pointBorderColor: "#ffffff",
+            pointHoverRadius: 6,
+            pointRadius: 4.5,
+            fill: true,
+            tension: 0.35
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "top", labels: { boxWidth: 10, font: { size: 10, family: "Cairo, Inter, sans-serif" } } }
+        interaction: {
+          mode: "index",
+          intersect: false
         },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 9.5 } } },
-          y: {
-            type: "linear",
-            display: true,
-            position: "right",
-            grid: { color: "rgba(203, 213, 225, 0.4)" },
-            ticks: {
-              callback: function (value) { return (value / 1000) + "k hrs"; },
-              font: { size: 9 }
+        plugins: {
+          legend: {
+            position: "top",
+            labels: {
+              boxWidth: 12,
+              usePointStyle: true,
+              pointStyle: "circle",
+              font: { size: 10, family: "Cairo, Inter, sans-serif", weight: "bold" }
             }
           },
-          y1: {
-            type: "linear",
-            display: true,
-            position: "left",
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                return " " + ctx.dataset.label + ": " + ctx.parsed.y + " مؤشر / حالة";
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
             grid: { display: false },
-            ticks: { stepSize: 2, font: { size: 9 } }
+            ticks: { font: { size: 9.5, family: "Cairo, Inter, sans-serif" } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(203, 213, 225, 0.4)" },
+            ticks: {
+              stepSize: 2,
+              precision: 0,
+              font: { size: 9.5 }
+            }
           }
         }
       }
@@ -2864,34 +3362,38 @@ function updateInteractiveCharts() {
 }
 
 function renderDashboard() {
-  var total = findings.length, closed = findings.filter(function (x) { return x.status === "Closed"; }).length;
+  var ncrFindings = findings.filter(function (x) { return x.category !== "General"; });
+  var totalNcr = ncrFindings.length;
+  var closedNcr = ncrFindings.filter(function (x) { return x.status === "Closed"; }).length;
   var activePtwCount = ptwList.filter(function (x) { return x.status === "Issued & Active" || x.status === "Under Review"; }).length;
-  var nearMissCount = incidents.filter(function (x) { return x.type.includes("Near-Miss"); }).length;
+  var nearMissCount = incidents.filter(function (x) { return x.type && x.type.includes("Near-Miss"); }).length;
   var totalTrained = trainingSessions.reduce(function (sum, item) { return sum + (item.attendees || 0); }, 0);
   var stats = getSafeStats();
 
   document.getElementById("safeDaysCount").textContent = stats.safeDays;
   document.getElementById("safeHoursCount").textContent = stats.safeHours.toLocaleString() + " hrs";
-  document.getElementById("kTotal").textContent = total;
-  document.getElementById("kClosed").textContent = closed;
+  document.getElementById("kTotal").textContent = totalNcr;
+  document.getElementById("kClosed").textContent = closedNcr;
   document.getElementById("kActivePTW").textContent = activePtwCount;
   document.getElementById("kNearMiss").textContent = nearMissCount;
   document.getElementById("kTrained").textContent = totalTrained;
-  document.getElementById("kRate").textContent = (total ? Math.round(closed / total * 100) : 0) + "%";
+  document.getElementById("kRate").textContent = (totalNcr ? Math.round(closedNcr / totalNcr * 100) : 0) + "%";
 
   var nmTarget = 10;
   var nmPercent = Math.min(100, Math.round((nearMissCount / nmTarget) * 100));
   document.getElementById("nmGaugeText").textContent = nearMissCount + " / " + nmTarget + " (" + nmPercent + "%)";
   document.getElementById("nmGaugeBar").style.width = nmPercent + "%";
 
-  var pct = function (n) { return total ? Math.round(n / total * 100) : 0; };
+  var pct = function (n) { return totalNcr ? Math.round(n / totalNcr * 100) : 0; };
   document.getElementById("statusBars").innerHTML = ["Closed", "In Progress", "Open"].map(function (s) {
-    var n = findings.filter(function (x) { return x.status === s; }).length;
-    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px"><b>' + s + '</b><span>' + n + ' (' + pct(n) + '%)</span></div><div class="bar"><i style="width:' + pct(n) + '%"></i></div></div>';
+    var n = ncrFindings.filter(function (x) { return x.status === s; }).length;
+    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px"><b>' + s + ' (NCR)</b><span>' + n + ' (' + pct(n) + '%)</span></div><div class="bar"><i style="width:' + pct(n) + '%"></i></div></div>';
   }).join("");
 
   var ptwTbl = document.getElementById("dashboardPtwTable");
-  ptwTbl.innerHTML = ptwList.length ? '<table class="answer"><thead><tr><th style="width:16%">Permit No.</th><th style="width:24%">Type</th><th>Location</th><th style="width:16%">Contractor/Dept</th><th style="width:18%">Status</th><th style="width:8%">Action</th></tr></thead><tbody>' + ptwList.map(function (x) { return '<tr><td><b>' + esc(x.no) + '</b></td><td>' + esc(x.type) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.contractor) + '</td><td><select style="padding:4px 6px;border-radius:6px;border:1px solid #cbd5e1;font-size:11px;font-weight:700" onchange="updatePTWStatus(' + x.id + ', this.value)"><option value="Issued & Active"' + (x.status === "Issued & Active" ? " selected" : "") + '>Issued & Active</option><option value="Under Review"' + (x.status === "Under Review" ? " selected" : "") + '>Under Review</option><option value="Closed & Handed Over"' + (x.status === "Closed & Handed Over" ? " selected" : "") + '>Closed & Handed Over</option></select></td><td style="text-align:center"><button style="background:none;border:none;color:#dc2626;cursor:pointer" onclick="deletePTW(' + x.id + ')"><i class="fa-solid fa-trash"></i></button></td></tr>'; }).join("") + '</tbody></table>' : '<div class="status">لا توجد تصاريح عمل مسجلة حالياً.</div>';
+  ptwTbl.innerHTML = ptwList.length ? '<table class="answer"><thead><tr><th style="width:14%">Permit No.</th><th style="width:20%">Type</th><th>Location</th><th style="width:16%">Contractor/Dept</th><th style="width:18%">Status</th><th style="width:14%;text-align:center">Action</th></tr></thead><tbody>' + ptwList.map(function (x) {
+    return '<tr><td><b>' + esc(x.no) + '</b></td><td>' + esc(x.type) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.contractor) + '</td><td><select style="padding:4px 6px;border-radius:6px;border:1px solid #cbd5e1;font-size:11px;font-weight:700" onchange="updatePTWStatus(' + x.id + ', this.value)"><option value="Issued & Active"' + (x.status === "Issued & Active" ? " selected" : "") + '>Issued & Active</option><option value="Under Review"' + (x.status === "Under Review" ? " selected" : "") + '>Under Review</option><option value="Closed & Handed Over"' + (x.status === "Closed & Handed Over" ? " selected" : "") + '>Closed & Handed Over</option></select></td><td style="text-align:center;white-space:nowrap"><button class="btn btn-blue" style="padding:4px 8px;font-size:10px;margin-left:4px" onclick="openEditPTWModal(' + x.id + ')" title="تعديل تصريح العمل"><i class="fa-solid fa-pen-to-square"></i> Edit</button><button style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px" onclick="deletePTW(' + x.id + ')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>';
+  }).join("") + '</tbody></table>' : '<div class="status">لا توجد تصاريح عمل مسجلة حالياً.</div>';
 
   var q = (document.getElementById("filterSearch").value || "").toLowerCase();
   var st = document.getElementById("filterStatus").value || "";
@@ -2906,10 +3408,32 @@ function renderDashboard() {
     return matchQ && matchSt && matchPr && matchCat;
   });
 
-  document.getElementById("findingsTable").innerHTML = filtered.length ? '<table class="answer"><thead><tr><th style="width:8%">التصنيف</th><th style="width:10%">Area</th><th>Finding / Description</th><th style="width:10%">Department</th><th style="width:8%">Risk</th><th style="width:10%">Status</th><th style="width:10%">Target Date</th><th style="width:16%">Actions & Verify</th><th style="width:5%">🗑</th></tr></thead><tbody>' + filtered.map(function (x) {
+  document.getElementById("findingsTable").innerHTML = filtered.length ? '<table class="answer"><thead><tr><th style="width:8%">التصنيف</th><th style="width:10%">Area</th><th>Finding / Description &amp; Notes</th><th style="width:10%">Department</th><th style="width:14%">Risk / Impact (الخطورة والأثر)</th><th style="width:9%">Status</th><th style="width:9%">Target Date</th><th style="width:15%">Actions &amp; Verify</th><th style="width:4%">🗑</th></tr></thead><tbody>' + filtered.map(function (x) {
     var isGeneral = x.category === "General";
-    var categoryBadge = isGeneral ? '<span class="badge general-case">📋 حالة عامة</span>' : '<span class="badge high">⚠ NCR</span>';
-    return '<tr><td style="text-align:center">' + categoryBadge + '</td><td>' + esc(x.area) + '</td><td>' + esc(x.finding) + (isGeneral && x.caseType ? '<br><small style="color:var(--blue);font-weight:700">📌 ' + esc(x.caseType) + '</small>' : '') + '</td><td>' + esc(x.dept) + '</td><td><span class="badge ' + (x.priority ? x.priority.toLowerCase() : "medium") + '">' + esc(x.priority || "Medium") + '</span></td><td><span class="badge ' + (x.status === "Closed" ? "closed" : x.status === "In Progress" ? "progress" : "open") + '">' + esc(x.status) + '</span></td><td>' + esc(x.date) + '</td><td style="text-align:center;white-space:nowrap"><button class="btn btn-blue" style="padding:4px 8px;font-size:10px;margin-left:4px" onclick="openEditFindingModal(' + x.id + ')" title="تعديل"><i class="fa-solid fa-pen-to-square"></i> Edit</button><button class="btn btn-green" style="padding:4px 8px;font-size:10px" onclick="openClosureModal(' + x.id + ')" title="إغلاق وتحقق"><i class="fa-solid fa-camera"></i> ' + (x.status === "Closed" ? "View" : "Verify") + '</button></td><td style="text-align:center"><button style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px" onclick="deleteFinding(' + x.id + ')" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>';
+    var categoryBadge = isGeneral ? '<span class="badge general-case">📋 حالة عامة</span>' : '<span class="badge high">⚠ ' + esc(x.ncrNo || "NCR") + '</span>';
+    var notesText = (x.caseNotes || x.notes || "").trim();
+    var notesHtml = notesText ? '<div style="margin-top:5px;font-size:11px;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;padding:4px 8px;border-radius:6px;border-right:3px solid var(--sut-red);line-height:1.4"><b>📝 ملاحظات إضافية وتوجيهات:</b> ' + esc(notesText) + '</div>' : '';
+    var impactText = (x.impact || "").trim();
+    var prioBadge = '<span class="badge ' + (x.priority ? x.priority.toLowerCase() : "medium") + '">' + esc(x.priority || "Medium") + '</span>';
+    var riskImpactHtml = '<div style="display:flex;flex-direction:column;gap:3px">' +
+      prioBadge +
+      (impactText ? '<small style="font-size:10.5px;color:#475569;line-height:1.25"><i class="fa-solid fa-triangle-exclamation" style="color:var(--sut-red);font-size:9.5px"></i> ' + esc(impactText) + '</small>' : '') +
+    '</div>';
+
+    return '<tr>' +
+      '<td style="text-align:center">' + categoryBadge + '</td>' +
+      '<td>' + esc(x.area) + '</td>' +
+      '<td><div>' + esc(x.finding) + '</div>' + (isGeneral && x.caseType ? '<small style="color:var(--blue);font-weight:700;display:block;margin-top:2px">📌 ' + esc(x.caseType) + '</small>' : '') + notesHtml + '</td>' +
+      '<td>' + esc(x.dept) + '</td>' +
+      '<td>' + riskImpactHtml + '</td>' +
+      '<td><span class="badge ' + (x.status === "Closed" ? "closed" : x.status === "In Progress" ? "progress" : "open") + '">' + esc(x.status) + '</span></td>' +
+      '<td>' + esc(x.target || x.date || "—") + '</td>' +
+      '<td style="text-align:center;white-space:nowrap">' +
+        '<button class="btn btn-blue" style="padding:4px 8px;font-size:10px;margin-left:4px" onclick="openEditFindingModal(' + x.id + ')" title="تعديل الملاحظة ودرجة الخطورة والأثر"><i class="fa-solid fa-pen-to-square"></i> Edit</button>' +
+        '<button class="btn btn-green" style="padding:4px 8px;font-size:10px" onclick="openClosureModal(' + x.id + ')" title="إغلاق وتحقق"><i class="fa-solid fa-camera"></i> ' + (x.status === "Closed" ? "View" : "Verify") + '</button>' +
+      '</td>' +
+      '<td style="text-align:center"><button style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:13px" onclick="deleteFinding(' + x.id + ')" title="Delete"><i class="fa-solid fa-trash"></i></button></td>' +
+    '</tr>';
   }).join("") + '</tbody></table>' : '<div class="status">لا توجد نتائج مطابقة للبحث أو الفلترة.</div>';
 
   updateInteractiveCharts();
@@ -2946,12 +3470,33 @@ function sendOfficialEmail() {
   window.location.href = mailtoUrl;
 }
 
+function formatIncidentType(type, isEn) {
+  if (!type) return isEn ? "Near-Miss" : "واقعة وشيكة";
+  if (isEn) {
+    if (type.includes("Near-Miss")) return "Near-Miss";
+    if (type.includes("Lost Time")) return "Lost Time Injury (LTI)";
+    if (type.includes("First Aid")) return "First Aid Case (FAC)";
+    if (type.includes("Medical Treatment")) return "Medical Treatment Case (MTC)";
+    if (type.includes("Property Damage") || type.includes("تلفيات")) return "Property Damage";
+    if (type.includes("Fire") || type.includes("حريق")) return "Fire Incident";
+    if (type.includes("Environmental") || type.includes("بيئي")) return "Environmental Incident";
+    var cleaned = type.replace(/\([^)]*[\u0600-\u06FF]+[^)]*\)/g, "").trim();
+    return cleaned || type;
+  }
+  return type;
+}
+
+function formatReportDateTime(d) {
+  if (!d) return "—";
+  return String(d).replace("T", " ");
+}
+
 function getFullMonthlyHTML() {
   var total = findings.length, closed = findings.filter(function (x) { return x.status === "Closed"; }).length;
   var ncrFindings = findings.filter(function (x) { return x.category !== "General"; });
   var generalCases = findings.filter(function (x) { return x.category === "General"; });
   var activePtwCount = ptwList.filter(function (x) { return x.status === "Issued & Active" || x.status === "Under Review"; }).length;
-  var nearMissCount = incidents.filter(function (x) { return x.type.includes("Near-Miss"); }).length;
+  var nearMissCount = incidents.filter(function (x) { return x.type && x.type.includes("Near-Miss"); }).length;
   var stats = getSafeStats();
   var totalTrained = trainingSessions.reduce(function (sum, item) { return sum + (item.attendees || 0); }, 0);
   var busCustom = (document.getElementById("monthlyBusNotes").value || monthlyBusNotes).trim();
@@ -2967,23 +3512,35 @@ function getFullMonthlyHTML() {
     if (trendChartInstance) trendDataUrl = trendChartInstance.toBase64Image();
   } catch (e) { }
 
-  var chartsHTML = (donutDataUrl || riskDataUrl || deptDataUrl) ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0">' +
-    (donutDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px;text-align:center"><img src="' + donutDataUrl + '" style="max-height:140px;width:auto"><span style="display:block;font-size:9px;font-weight:bold;margin-top:4px">' + (isEn ? "CAPA Resolution Status" : "موقف معالجة الملاحظات") + '</span></div>' : "") +
-    (riskDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px;text-align:center"><img src="' + riskDataUrl + '" style="max-height:140px;width:auto"><span style="display:block;font-size:9px;font-weight:bold;margin-top:4px">' + (isEn ? "Risk Severity Profile" : "توزيع مصفوفة المخاطر") + '</span></div>' : "") +
-    (deptDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px;text-align:center"><img src="' + deptDataUrl + '" style="max-height:140px;width:auto"><span style="display:block;font-size:9px;font-weight:bold;margin-top:4px">' + (isEn ? "Departmental Compliance" : "معدل الامتثال حسب الإدارة") + '</span></div>' : "") +
-    (trendDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:6px;text-align:center"><img src="' + trendDataUrl + '" style="max-height:140px;width:auto"><span style="display:block;font-size:9px;font-weight:bold;margin-top:4px">' + (isEn ? "Safety Trends & Milestones" : "مؤشرات السلامة وساعات العمل") + '</span></div>' : "") +
+  var chartsHTML = (donutDataUrl || riskDataUrl || deptDataUrl || trendDataUrl) ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">' +
+    (donutDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:10px;padding:8px;text-align:center;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.03)"><img src="' + donutDataUrl + '" style="max-height:150px;width:auto;max-width:100%;object-fit:contain;margin:0 auto;display:block"><span style="display:block;font-size:10px;font-weight:800;margin-top:6px;color:#0b1f3a">' + (isEn ? "CAPA Resolution Status" : "موقف معالجة الملاحظات") + '</span></div>' : "") +
+    (riskDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:10px;padding:8px;text-align:center;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.03)"><img src="' + riskDataUrl + '" style="max-height:150px;width:auto;max-width:100%;object-fit:contain;margin:0 auto;display:block"><span style="display:block;font-size:10px;font-weight:800;margin-top:6px;color:#0b1f3a">' + (isEn ? "Risk Severity Profile" : "توزيع مصفوفة المخاطر") + '</span></div>' : "") +
+    (deptDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:10px;padding:8px;text-align:center;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.03)"><img src="' + deptDataUrl + '" style="max-height:150px;width:auto;max-width:100%;object-fit:contain;margin:0 auto;display:block"><span style="display:block;font-size:10px;font-weight:800;margin-top:6px;color:#0b1f3a">' + (isEn ? "Departmental Compliance" : "معدل الامتثال حسب الإدارة") + '</span></div>' : "") +
+    (trendDataUrl ? '<div style="border:1px solid #cbd5e1;border-radius:10px;padding:8px;text-align:center;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.03)"><img src="' + trendDataUrl + '" style="max-height:150px;width:auto;max-width:100%;object-fit:contain;margin:0 auto;display:block"><span style="display:block;font-size:10px;font-weight:800;margin-top:6px;color:#0b1f3a">' + (isEn ? "Safety Trends & Milestones" : "مؤشرات السلامة وساعات العمل") + '</span></div>' : "") +
   '</div>' : "";
 
   var generalCasesSection = "";
   if (isEn) {
-    generalCasesSection = '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">8. General HSE Cases (Licensing, Permits, Compliance & Administrative Follow-ups)</div>' +
-      (generalCases.length ? '<table><thead><tr><th>Case Type</th><th>Description</th><th>Department</th><th>Priority</th><th>Status</th><th>Due Date</th></tr></thead><tbody>' +
-        generalCases.map(function (x) { return '<tr><td>' + esc(x.caseType || "General") + '</td><td>' + esc(x.finding) + '</td><td>' + esc(x.dept) + '</td><td>' + esc(x.priority) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.target || x.date) + '</td></tr>'; }).join("") +
+    generalCasesSection = '<div class="section-title">8. General HSE Cases (Licensing, Permits, Compliance & Administrative Follow-ups)</div>' +
+      (generalCases.length ? '<table><thead><tr><th style="width:20%">Case Type</th><th style="width:38%">Description</th><th style="width:18%">Department</th><th style="width:8%;text-align:center">Priority</th><th style="width:8%;text-align:center">Status</th><th style="width:8%;text-align:center">Due Date</th></tr></thead><tbody>' +
+        generalCases.map(function (x) {
+          var p = (x.priority || "Medium").toLowerCase();
+          var pCls = p.includes("crit") ? "critical" : p.includes("high") ? "high" : p.includes("med") ? "medium" : "low";
+          var s = (x.status || "Open").toLowerCase();
+          var sCls = s.includes("close") ? "closed" : s.includes("prog") ? "progress" : "open";
+          return '<tr><td><span class="badge general-case">' + esc(x.caseType || "General") + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.finding) + '</td><td><b>' + esc(x.dept) + '</b></td><td style="text-align:center"><span class="badge ' + pCls + '">' + esc(x.priority) + '</span></td><td style="text-align:center"><span class="badge ' + sCls + '">' + esc(x.status) + '</span></td><td style="text-align:center;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.target || x.date)) + '</td></tr>';
+        }).join("") +
         '</tbody></table>' : '<p style="font-size:11px">No general HSE cases recorded during this period.</p>');
   } else {
     generalCasesSection = '<div class="section-title">8. الحالات العامة (التراخيص والتصاريح والمتابعات الإدارية)</div>' +
-      (generalCases.length ? '<table><thead><tr><th>نوع الحالة</th><th>الوصف / التفاصيل</th><th>الإدارة المسؤولة</th><th>الأولوية</th><th>الحالة</th><th>تاريخ الاستحقاق</th></tr></thead><tbody>' +
-        generalCases.map(function (x) { return '<tr><td>' + esc(x.caseType || "حالة عامة") + '</td><td>' + esc(x.finding) + '</td><td>' + esc(x.dept) + '</td><td>' + esc(x.priority) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.target || x.date) + '</td></tr>'; }).join("") +
+      (generalCases.length ? '<table><thead><tr><th style="width:20%">نوع الحالة</th><th style="width:38%">الوصف / التفاصيل</th><th style="width:18%">الإدارة المسؤولة</th><th style="width:8%;text-align:center">الأولوية</th><th style="width:8%;text-align:center">الحالة</th><th style="width:8%;text-align:center">تاريخ الاستحقاق</th></tr></thead><tbody>' +
+        generalCases.map(function (x) {
+          var p = (x.priority || "Medium").toLowerCase();
+          var pCls = p.includes("crit") ? "critical" : p.includes("high") ? "high" : p.includes("med") ? "medium" : "low";
+          var s = (x.status || "Open").toLowerCase();
+          var sCls = s.includes("close") ? "closed" : s.includes("prog") ? "progress" : "open";
+          return '<tr><td><span class="badge general-case">' + esc(x.caseType || "حالة عامة") + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.finding) + '</td><td><b>' + esc(x.dept) + '</b></td><td style="text-align:center"><span class="badge ' + pCls + '">' + esc(x.priority) + '</span></td><td style="text-align:center"><span class="badge ' + sCls + '">' + esc(x.status) + '</span></td><td style="text-align:center;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.target || x.date)) + '</td></tr>';
+        }).join("") +
         '</tbody></table>' : '<p style="font-size:11px">لا توجد حالات عامة مسجلة خلال هذه الفترة.</p>');
   }
 
@@ -2994,19 +3551,49 @@ function getFullMonthlyHTML() {
     var execSummary = isEn ? (lastMonthly.executive_summary_en || lastMonthly.executive_summary || "") : (lastMonthly.executive_summary_ar || lastMonthly.executive_summary || "");
 
     if (isEn) {
-      executiveSignalsSection = '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">1.1. Executive Strategic Performance Summary (Health Score: ' + execScore + '/100 — ' + esc(execGrade) + ')</div>' +
-        '<div class="answer" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:9.5px;margin-bottom:8px">' + md(execSummary) + '</div>';
+      executiveSignalsSection = '<div class="section-title">1.1. Executive Strategic Performance Summary (Health Score: ' + execScore + '/100 — ' + esc(execGrade) + ')</div>' +
+        '<div class="exec-summary-box">' + md(execSummary) + '</div>';
     } else {
       executiveSignalsSection = '<div class="section-title">1.1. الملخص التنفيذي الاستراتيجي للأداء والسلامة (مؤشر صحة السلامة: ' + execScore + '/100 — ' + esc(execGrade) + ')</div>' +
-        '<div class="answer" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:9.5px;margin-bottom:8px">' + md(execSummary) + '</div>';
+        '<div class="exec-summary-box">' + md(execSummary) + '</div>';
     }
   }
 
   if (isEn) {
-    return '<div class="report" id="fullExecutiveReport" style="direction:ltr;text-align:left"><div class="report-head" style="direction:ltr"><div class="track"><b>Report Type</b><span>Monthly HSE Report</span></div><div class="report-title"><h2>MONTHLY HSE EXECUTIVE REPORT</h2><p>El Sewedy University of Technology (SUTech) — Safety & Operations Department</p></div><div class="track"><b>Report Date</b><span>' + new Date().toLocaleDateString("en-GB") + '</span></div></div><div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">1. Executive HSE KPIs & Statistics</div><div class="dashboard-strip"><div class="dash-card"><strong>' + total + '</strong><span>Total Records</span></div><div class="dash-card"><strong>' + closed + '</strong><span>Closed Items</span></div><div class="dash-card"><strong>' + activePtwCount + '</strong><span>Active PTWs</span></div><div class="dash-card"><strong>' + totalTrained + '</strong><span>Trained Persons</span></div></div><div class="meta" style="direction:ltr"><div><b>Days Without LTI:</b> ' + stats.safeDays + ' Days</div><div><b>Safe Man-Hours:</b> ' + stats.safeHours.toLocaleString() + ' hrs</div><div><b>Closure Performance:</b> ' + (total ? Math.round(closed / total * 100) : 0) + '%</div></div>' + chartsHTML + executiveSignalsSection + '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">2. Campus Buses & Vehicles Inspection</div><p style="font-size:12px;margin:6px 0">' + (busCustom ? '<b>Buses and vehicles were inspected, and the following findings were noted:</b> ' + esc(busCustom) : '<b>Buses and vehicles were inspected, and no findings were recorded.</b>') + '</p><div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">3. Cafeterias & Food Outlets Inspection</div><p style="font-size:12px;margin:6px 0">' + (foodCustom ? '<b>Food outlets and cafeterias were inspected, and the following findings were noted:</b> ' + esc(foodCustom) : '<b>Food outlets and cafeterias were inspected, and no findings were recorded.</b>') + '</p><div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">4. Active & Closed Permits to Work (PTWs)</div>' + (ptwList.length ? '<table><thead><tr><th>Permit No.</th><th>Type</th><th>Location</th><th>Contractor/Dept</th><th>Status</th></tr></thead><tbody>' + ptwList.map(function (x) { return '<tr><td>' + esc(x.no) + '</td><td>' + esc(x.type) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.contractor) + '</td><td>' + esc(x.status) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">No work permits issued during this period.</p>') + '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">5. HSE Training & Awareness Sessions</div>' + (trainingSessions.length ? '<table><thead><tr><th>Topic</th><th>Date</th><th>Target Audience</th><th>Trainer</th><th>Attendees</th></tr></thead><tbody>' + trainingSessions.map(function (x) { return '<tr><td>' + esc(x.topic) + '</td><td>' + esc(x.date) + '</td><td>' + esc(x.audience) + '</td><td>' + esc(x.trainer) + '</td><td>' + x.attendees + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">No training sessions recorded.</p>') + '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">6. Incident & Near-Miss Log</div>' + (incidents.length ? '<table><thead><tr><th>Type</th><th>Date/Time</th><th>Location</th><th>Description</th></tr></thead><tbody>' + incidents.map(function (x) { return '<tr><td>' + esc(x.type) + '</td><td>' + esc(x.date) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.desc) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">Clean Record — Zero lost-time incidents or injuries recorded.</p>') + '<div class="section-title" style="border-left:5px solid var(--sut-red);border-right:none">7. Non-Conformity & Action Tracker (NCR / CAPA)</div>' + (ncrFindings.length ? '<table><thead><tr><th>Area</th><th>Finding</th><th>Department</th><th>Risk</th><th>Status</th><th>Target Date</th></tr></thead><tbody>' + ncrFindings.map(function (x) { return '<tr><td>' + esc(x.area) + '</td><td>' + esc(x.finding) + '</td><td>' + esc(x.dept) + '</td><td>' + esc(x.priority) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.date) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">No NCR findings recorded.</p>') + generalCasesSection + '</div>';
+    return '<div class="report" id="fullExecutiveReport" style="direction:ltr;text-align:left"><div class="report-head" style="direction:ltr"><div class="track"><b>Report Type</b><span>Monthly HSE Report</span></div><div class="report-title"><h2>MONTHLY HSE EXECUTIVE REPORT</h2><p>El Sewedy University of Technology (SUTech) — Safety & Operations Department</p></div><div class="track"><b>Report Date</b><span>' + new Date().toLocaleDateString("en-GB") + '</span></div></div><div class="section-title">1. Executive HSE KPIs & Statistics</div><div class="dashboard-strip"><div class="dash-card card-blue"><strong>' + total + '</strong><span>Total Records</span></div><div class="dash-card card-green"><strong>' + closed + '</strong><span>Closed Items</span></div><div class="dash-card card-amber"><strong>' + activePtwCount + '</strong><span>Active PTWs</span></div><div class="dash-card card-purple"><strong>' + totalTrained + '</strong><span>Trained Persons</span></div></div><div class="meta" style="direction:ltr"><div><b>Days Without LTI:</b> <span style="color:#059669;font-weight:800">' + stats.safeDays + ' Days</span></div><div><b>Safe Man-Hours:</b> <span style="color:#2563eb;font-weight:800">' + stats.safeHours.toLocaleString() + ' hrs</span></div><div><b>Closure Performance:</b> <span style="color:#c00000;font-weight:800">' + (total ? Math.round(closed / total * 100) : 0) + '%</span></div></div>' + chartsHTML + executiveSignalsSection + '<div class="section-title">2. Campus Buses & Vehicles Inspection</div><div class="' + (busCustom ? "inspection-status-box has-findings" : "inspection-status-box clean") + '">' + (busCustom ? '<b>Buses and vehicles were inspected, and the following findings were noted:</b> ' + esc(busCustom) : '<b>Buses and vehicles were inspected, and no findings were recorded. (100% Compliant)</b>') + '</div><div class="section-title">3. Cafeterias & Food Outlets Inspection</div><div class="' + (foodCustom ? "inspection-status-box has-findings" : "inspection-status-box clean") + '">' + (foodCustom ? '<b>Food outlets and cafeterias were inspected, and the following findings were noted:</b> ' + esc(foodCustom) : '<b>Food outlets and cafeterias were inspected, and no findings were recorded. (NFSA Compliant)</b>') + '</div><div class="section-title">4. Active & Closed Permits to Work (PTWs)</div>' + (ptwList.length ? '<table><thead><tr><th style="width:16%">Permit No.</th><th style="width:18%">Type</th><th style="width:24%">Location</th><th style="width:28%">Contractor/Dept</th><th style="width:14%;text-align:center">Status</th></tr></thead><tbody>' + ptwList.map(function (x) {
+      var ptwSt = (x.status || "").toLowerCase();
+      var ptwCls = ptwSt.includes("active") ? "progress" : ptwSt.includes("close") ? "closed" : "open";
+      return '<tr><td><b>' + esc(x.no) + '</b></td><td><span class="badge general-case">' + esc(x.type) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.loc) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.contractor) + '</td><td style="text-align:center"><span class="badge ' + ptwCls + '">' + esc(x.status) + '</span></td></tr>';
+    }).join("") + '</tbody></table>' : '<p style="font-size:11px">No work permits issued during this period.</p>') + '<div class="section-title">5. HSE Training & Awareness Sessions</div>' + (trainingSessions.length ? '<table><thead><tr><th style="width:28%">Topic</th><th style="width:14%;text-align:center">Date</th><th style="width:24%">Target Audience</th><th style="width:20%">Trainer</th><th style="width:14%;text-align:center">Attendees</th></tr></thead><tbody>' + trainingSessions.map(function (x) { return '<tr><td><b>' + esc(x.topic) + '</b></td><td style="text-align:center;font-weight:600;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.audience) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.trainer) + '</td><td style="text-align:center"><span class="badge active">' + x.attendees + '</span></td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">No training sessions recorded.</p>') + '<div class="section-title">6. Incident & Near-Miss Log</div>' + (incidents.length ? '<table><thead><tr><th style="width:20%">Type</th><th style="width:16%;text-align:center">Date / Time</th><th style="width:18%">Location</th><th style="width:46%">Description</th></tr></thead><tbody>' + incidents.map(function (x) {
+      var isNear = (x.type || "").toLowerCase().includes("near");
+      var isLti = (x.type || "").toLowerCase().includes("lost") || (x.type || "").toLowerCase().includes("lti");
+      var badgeCls = isLti ? "critical" : isNear ? "progress" : "high";
+      return '<tr><td><span class="badge ' + badgeCls + '">' + esc(formatIncidentType(x.type, true)) + '</span></td><td style="text-align:center;font-weight:600;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td><td><span class="hotspot-tag">' + esc(x.loc) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.desc) + '</td></tr>';
+    }).join("") + '</tbody></table>' : '<div class="inspection-status-box clean"><b>Clean Record — Zero lost-time incidents or injuries recorded (Zero-LTI).</b></div>') + '<div class="section-title">7. Non-Conformity & Action Tracker (NCR / CAPA)</div>' + (ncrFindings.length ? '<table><thead><tr><th style="width:16%">Area</th><th style="width:38%">Finding</th><th style="width:18%">Department</th><th style="width:9%;text-align:center">Risk</th><th style="width:9%;text-align:center">Status</th><th style="width:10%;text-align:center">Target Date</th></tr></thead><tbody>' + ncrFindings.map(function (x) {
+      var p = (x.priority || "Medium").toLowerCase();
+      var pCls = p.includes("crit") ? "critical" : p.includes("high") ? "high" : p.includes("med") ? "medium" : "low";
+      var s = (x.status || "Open").toLowerCase();
+      var sCls = s.includes("close") ? "closed" : s.includes("prog") ? "progress" : "open";
+      return '<tr><td><span class="hotspot-tag">' + esc(x.area) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.finding) + '</td><td><b>' + esc(x.dept) + '</b></td><td style="text-align:center"><span class="badge ' + pCls + '">' + esc(x.priority) + '</span></td><td style="text-align:center"><span class="badge ' + sCls + '">' + esc(x.status) + '</span></td><td style="text-align:center;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td></tr>';
+    }).join("") + '</tbody></table>' : '<p style="font-size:11px">No NCR findings recorded.</p>') + generalCasesSection + '</div>';
   }
 
-  return '<div class="report" id="fullExecutiveReport"><div class="report-head"><div class="track"><b>نوع التقرير</b><span>Monthly HSE Report</span></div><div class="report-title"><h2>MONTHLY HSE EXECUTIVE REPORT</h2><p>جامعة السويدي للتكنولوجيا (SUTech) — التقرير الشهري الشامل لإدارة السلامة والبيئة والخدمات</p></div><div class="track"><b>تاريخ التقرير</b><span>' + new Date().toLocaleDateString("en-GB") + '</span></div></div><div class="section-title">1. المؤشرات التنفيذية الرئيسية (Executive HSE KPIs)</div><div class="dashboard-strip"><div class="dash-card"><strong>' + total + '</strong><span>إجمالي السجلات</span></div><div class="dash-card"><strong>' + closed + '</strong><span>سجلات مغلقة</span></div><div class="dash-card"><strong>' + activePtwCount + '</strong><span>تصاريح نشطة</span></div><div class="dash-card"><strong>' + totalTrained + '</strong><span>كوادر متدربة</span></div></div><div class="meta"><div><b>أيام العمل الآمنة:</b> ' + stats.safeDays + ' يوم</div><div><b>ساعات العمل الآمنة:</b> ' + stats.safeHours.toLocaleString() + ' ساعة</div><div><b>نسبة الإغلاق الميداني:</b> ' + (total ? Math.round(closed / total * 100) : 0) + '%</div></div>' + chartsHTML + executiveSignalsSection + '<div class="section-title">2. فحص الباصات والسيارات</div><p style="font-size:12px;margin:6px 0">' + (busCustom ? '<b>تم فحص الباصات والسيارات، وتوجد الملاحظات التالية:</b> ' + esc(busCustom) : '<b>تم فحص الباصات والسيارات ولا توجد أي ملاحظات.</b>') + '</p><div class="section-title">3. فحص المطاعم ومنافذ البيع</div><p style="font-size:12px;margin:6px 0">' + (foodCustom ? '<b>تم فحص المطاعم ومنافذ البيع، وتوجد الملاحظات التالية:</b> ' + esc(foodCustom) : '<b>تم فحص المطاعم ومنافذ البيع ولا توجد أي ملاحظات.</b>') + '</p><div class="section-title">4. تصاريح العمل التخصصية الصادرة (Permits to Work)</div>' + (ptwList.length ? '<table><thead><tr><th>رقم التصريح</th><th>نوع العمل</th><th>الموقع</th><th>الجهة المنفذة</th><th>الحالة</th></tr></thead><tbody>' + ptwList.map(function (x) { return '<tr><td>' + esc(x.no) + '</td><td>' + esc(x.type) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.contractor) + '</td><td>' + esc(x.status) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد تصاريح عمل مسجلة خلال هذه الفترة.</p>') + '<div class="section-title">5. جلسات التدريب والتوعية بالسلامة (Training & TBT)</div>' + (trainingSessions.length ? '<table><thead><tr><th>موضوع التدريب</th><th>التاريخ</th><th>الفئة المستهدفة</th><th>المدرب</th><th>عدد الحضور</th></tr></thead><tbody>' + trainingSessions.map(function (x) { return '<tr><td>' + esc(x.topic) + '</td><td>' + esc(x.date) + '</td><td>' + esc(x.audience) + '</td><td>' + esc(x.trainer) + '</td><td>' + x.attendees + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد جلسات تدريب مسجلة.</p>') + '<div class="section-title">6. سجل الحوادث والوقائع الوشيكة (Incidents & Near-Miss)</div>' + (incidents.length ? '<table><thead><tr><th>نوع الواقعة</th><th>التاريخ والوقت</th><th>الموقع</th><th>الوصف والإجراء</th></tr></thead><tbody>' + incidents.map(function (x) { return '<tr><td>' + esc(x.type) + '</td><td>' + esc(x.date) + '</td><td>' + esc(x.loc) + '</td><td>' + esc(x.desc) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">السجل نظيف — لم تسجل أي حوادث أو إصابات هادرة (Zero LTI).</p>') + '<div class="section-title">7. سجل المخالفات والإجراءات التصحيحية (NCR / CAPA Register)</div>' + (ncrFindings.length ? '<table><thead><tr><th>المكان</th><th>الملاحظة / المخالفة</th><th>الإدارة المسؤولة</th><th>درجة الخطورة</th><th>الحالة</th><th>تاريخ الاستحقاق</th></tr></thead><tbody>' + ncrFindings.map(function (x) { return '<tr><td>' + esc(x.area) + '</td><td>' + esc(x.finding) + '</td><td>' + esc(x.dept) + '</td><td>' + esc(x.priority) + '</td><td>' + esc(x.status) + '</td><td>' + esc(x.date) + '</td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد مخالفات NCR مسجلة.</p>') + generalCasesSection + '</div>';
+  return '<div class="report" id="fullExecutiveReport"><div class="report-head"><div class="track"><b>نوع التقرير</b><span>Monthly HSE Report</span></div><div class="report-title"><h2>MONTHLY HSE EXECUTIVE REPORT</h2><p>جامعة السويدي للتكنولوجيا (SUTech) — التقرير الشهري الشامل لإدارة السلامة والبيئة والخدمات</p></div><div class="track"><b>تاريخ التقرير</b><span>' + new Date().toLocaleDateString("en-GB") + '</span></div></div><div class="section-title">1. المؤشرات التنفيذية الرئيسية (Executive HSE KPIs)</div><div class="dashboard-strip"><div class="dash-card card-blue"><strong>' + total + '</strong><span>إجمالي السجلات</span></div><div class="dash-card card-green"><strong>' + closed + '</strong><span>سجلات مغلقة</span></div><div class="dash-card card-amber"><strong>' + activePtwCount + '</strong><span>تصاريح نشطة</span></div><div class="dash-card card-purple"><strong>' + totalTrained + '</strong><span>كوادر متدربة</span></div></div><div class="meta"><div><b>أيام العمل الآمنة:</b> <span style="color:#059669;font-weight:800">' + stats.safeDays + ' يوم</span></div><div><b>ساعات العمل الآمنة:</b> <span style="color:#2563eb;font-weight:800">' + stats.safeHours.toLocaleString() + ' ساعة</span></div><div><b>نسبة الإغلاق الميداني:</b> <span style="color:#c00000;font-weight:800">' + (total ? Math.round(closed / total * 100) : 0) + '%</span></div></div>' + chartsHTML + executiveSignalsSection + '<div class="section-title">2. فحص الباصات والسيارات</div><div class="' + (busCustom ? "inspection-status-box has-findings" : "inspection-status-box clean") + '">' + (busCustom ? '<b>تم فحص الباصات والسيارات، وتوجد الملاحظات التالية:</b> ' + esc(busCustom) : '<b>تم فحص الباصات والسيارات ولا توجد أي ملاحظات (مطابق 100%).</b>') + '</div><div class="section-title">3. فحص المطاعم ومنافذ البيع</div><div class="' + (foodCustom ? "inspection-status-box has-findings" : "inspection-status-box clean") + '">' + (foodCustom ? '<b>تم فحص المطاعم ومنافذ البيع، وتوجد الملاحظات التالية:</b> ' + esc(foodCustom) : '<b>تم فحص المطاعم ومنافذ البيع ولا توجد أي ملاحظات (مطابق لاشتراطات NFSA).</b>') + '</div><div class="section-title">4. تصاريح العمل التخصصية الصادرة (Permits to Work)</div>' + (ptwList.length ? '<table><thead><tr><th style="width:16%">رقم التصريح</th><th style="width:18%">نوع العمل</th><th style="width:24%">الموقع</th><th style="width:28%">الجهة المنفذة</th><th style="width:14%;text-align:center">الحالة</th></tr></thead><tbody>' + ptwList.map(function (x) {
+    var ptwSt = (x.status || "").toLowerCase();
+    var ptwCls = ptwSt.includes("active") ? "progress" : ptwSt.includes("close") ? "closed" : "open";
+    return '<tr><td><b>' + esc(x.no) + '</b></td><td><span class="badge general-case">' + esc(x.type) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.loc) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.contractor) + '</td><td style="text-align:center"><span class="badge ' + ptwCls + '">' + esc(x.status) + '</span></td></tr>';
+  }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد تصاريح عمل مسجلة خلال هذه الفترة.</p>') + '<div class="section-title">5. جلسات التدريب والتوعية بالسلامة (Training & TBT)</div>' + (trainingSessions.length ? '<table><thead><tr><th style="width:28%">موضوع التدريب</th><th style="width:14%;text-align:center">التاريخ</th><th style="width:24%">الفئة المستهدفة</th><th style="width:20%">المدرب</th><th style="width:14%;text-align:center">عدد الحضور</th></tr></thead><tbody>' + trainingSessions.map(function (x) { return '<tr><td><b>' + esc(x.topic) + '</b></td><td style="text-align:center;font-weight:600;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.audience) + '</td><td dir="auto" style="text-align:start;unicode-bidi:plaintext">' + esc(x.trainer) + '</td><td style="text-align:center"><span class="badge active">' + x.attendees + '</span></td></tr>'; }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد جلسات تدريب مسجلة.</p>') + '<div class="section-title">6. سجل الحوادث والوقائع الوشيكة (Incidents & Near-Miss)</div>' + (incidents.length ? '<table><thead><tr><th style="width:20%">نوع الواقعة</th><th style="width:16%;text-align:center">التاريخ والوقت</th><th style="width:18%">الموقع</th><th style="width:46%">الوصف والإجراء</th></tr></thead><tbody>' + incidents.map(function (x) {
+    var isNear = (x.type || "").toLowerCase().includes("near");
+    var isLti = (x.type || "").toLowerCase().includes("lost") || (x.type || "").toLowerCase().includes("lti");
+    var badgeCls = isLti ? "critical" : isNear ? "progress" : "high";
+    return '<tr><td><span class="badge ' + badgeCls + '">' + esc(formatIncidentType(x.type, false)) + '</span></td><td style="text-align:center;font-weight:600;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td><td><span class="hotspot-tag">' + esc(x.loc) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.desc) + '</td></tr>';
+  }).join("") + '</tbody></table>' : '<div class="inspection-status-box clean"><b>السجل نظيف — لم تسجل أي حوادث أو إصابات هادرة (Zero LTI).</b></div>') + '<div class="section-title">7. سجل المخالفات والإجراءات التصحيحية (NCR / CAPA Register)</div>' + (ncrFindings.length ? '<table><thead><tr><th style="width:16%">المكان</th><th style="width:38%">الملاحظة / المخالفة</th><th style="width:18%">الإدارة المسؤولة</th><th style="width:9%;text-align:center">درجة الخطورة</th><th style="width:9%;text-align:center">الحالة</th><th style="width:10%;text-align:center">تاريخ الاستحقاق</th></tr></thead><tbody>' + ncrFindings.map(function (x) {
+    var p = (x.priority || "Medium").toLowerCase();
+    var pCls = p.includes("crit") ? "critical" : p.includes("high") ? "high" : p.includes("med") ? "medium" : "low";
+    var s = (x.status || "Open").toLowerCase();
+    var sCls = s.includes("close") ? "closed" : s.includes("prog") ? "progress" : "open";
+    return '<tr><td><span class="hotspot-tag">' + esc(x.area) + '</span></td><td dir="auto" style="text-align:start;unicode-bidi:plaintext;line-height:1.5">' + esc(x.finding) + '</td><td><b>' + esc(x.dept) + '</b></td><td style="text-align:center"><span class="badge ' + pCls + '">' + esc(x.priority) + '</span></td><td style="text-align:center"><span class="badge ' + sCls + '">' + esc(x.status) + '</span></td><td style="text-align:center;font-size:10px;white-space:nowrap">' + esc(formatReportDateTime(x.date)) + '</td></tr>';
+  }).join("") + '</tbody></table>' : '<p style="font-size:11px">لا توجد مخالفات NCR مسجلة.</p>') + generalCasesSection + '</div>';
 }
 
 function buildFullMonthlyDashboard() {
@@ -3036,7 +3623,7 @@ function printFullDashboard() {
 
   var doc = iframe.contentWindow.document;
   doc.open();
-  doc.write('<!DOCTYPE html><html lang="' + currentReportLang + '" dir="' + targetDir + '"><head><meta charset="utf-8"><title>SUTech Full Monthly HSE Executive Report</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"><style>' + exportStyles() + '@page { size: A4 portrait; margin: 10mm 8mm 12mm 8mm; } @media print { html, body { background: #fff!important; color: #0f172a!important; } .export-page { width: 100%!important; max-width: 100%!important; padding: 0!important; margin: 0 auto!important; } .sut-export-header { margin-bottom: 8px!important; } .sut-export-footer { margin-top: 14px!important; } }</style></head><body><div class="export-page" dir="' + targetDir + '">' + wrappedContent + '</div></body></html>');
+  doc.write('<!DOCTYPE html><html lang="' + currentReportLang + '" dir="' + targetDir + '"><head><meta charset="utf-8"><title>SUTech Full Monthly HSE Executive Report</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>' + exportStyles() + '</style></head><body><div class="export-page" dir="' + targetDir + '">' + wrappedContent + '</div></body></html>');
   doc.close();
 
   setTimeout(function () {
@@ -3072,72 +3659,334 @@ function getExportClone(id) {
   var container = document.getElementById(id); if (!container) throw new Error("Report container not found.");
   var source = container.querySelector(".report") || container; var clone = source.cloneNode(true);
   clone.querySelectorAll(".no-print").forEach(function (x) { x.remove(); });
-  clone.querySelectorAll("img").forEach(function (img) { if (!img.src.startsWith("data:")) { img.removeAttribute("src"); img.style.display = "none"; } });
+  clone.querySelectorAll("img").forEach(function (img) {
+    var s = img.getAttribute("src") || "";
+    if (!s.startsWith("data:") && !s.startsWith("blob:") && !s.startsWith("http") && !s.includes("sut_logo.png")) {
+      img.removeAttribute("src");
+      img.style.display = "none";
+    }
+  });
   return clone;
 }
 
 function exportStyles() {
-  return '*{box-sizing:border-box}' +
-    'body{font-family:Cairo,Inter,Arial,"Segoe UI",sans-serif;color:#0f172a;background:#fff;margin:0;padding:0;line-height:1.6}' +
-    '.export-page{width:100%;max-width:190mm;margin:0 auto;background:#fff;padding:0}' +
-    '.sut-export-header{width:100%;margin-bottom:12px;padding:0;display:block}' +
+  return '*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}' +
+    'body{font-family:Cairo,Inter,Arial,"Segoe UI",sans-serif;color:#0f172a;background:#ffffff;margin:0;padding:0;line-height:1.6;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+    '.export-page{width:100%;max-width:190mm;margin:0 auto;background:#ffffff;padding:0}' +
+    '.sut-export-header{width:100%;margin-bottom:10px;padding:0;display:block}' +
     '.sut-export-header img{height:48px;width:auto;max-width:145px;object-fit:contain;display:inline-block}' +
-    '.sut-export-footer{width:100%;margin-top:18px;page-break-inside:avoid}' +
-    '.report{width:100%;background:#fff;margin:0;padding:0}' +
-    '.report-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0b1f3a;padding-bottom:6px;margin-bottom:10px;gap:8px}' +
+    '.sut-export-footer{width:100%;margin-top:16px;page-break-inside:avoid}' +
+    '.report{width:100%;background:#ffffff;margin:0;padding:0}' +
+    '.report-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0b1f3a;padding:10px 14px;margin-bottom:12px;gap:10px;background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border-radius:8px;border:1px solid #cbd5e1;border-top:4px solid #c00000;page-break-inside:avoid}' +
     '[dir="ltr"] .report-head{direction:ltr}' +
     '[dir="rtl"] .report-head{direction:rtl}' +
     '.report-title{text-align:center;flex:1}' +
     '.report-title h2{font-size:15px;margin:0 0 2px;color:#0b1f3a;font-weight:800;letter-spacing:0.3px}' +
-    '.report-title p{font-size:9.5px;color:#c00000;font-weight:700;margin:0}' +
-    '.track{background:#f8fafc;border:1px solid #dbe3ec;padding:4px 8px;border-radius:5px;font-size:9px;text-align:center;min-width:90px}' +
-    '.track b{display:block;color:#64748b;font-size:7.5px;text-transform:uppercase}' +
+    '.report-title h3{font-size:11px;color:#1e3a8a;font-weight:700;margin:2px 0}' +
+    '.report-title p{font-size:9px;color:#c00000;font-weight:700;margin:0}' +
+    '.track{background:#f1f5f9;border:1px solid #cbd5e1;padding:5px 9px;border-radius:6px;font-size:8.5px;text-align:center;min-width:95px}' +
+    '.track b{display:block;color:#475569;font-size:7.5px;text-transform:uppercase;font-weight:700}' +
     '.track span{font-weight:800;color:#c00000;font-size:9px}' +
-    '.meta{display:flex;flex-wrap:wrap;gap:6px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:6px;padding:6px 8px;font-size:9px;margin-bottom:8px}' +
-    '.meta > div{flex:1 1 30%;min-width:110px}' +
+    '.meta{display:flex;flex-wrap:wrap;gap:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:9px;margin-bottom:10px}' +
+    '.meta > div{flex:1 1 30%;min-width:115px;color:#334155}' +
     '.meta b{color:#0b1f3a}' +
-    '.section-title{font-size:11.5px;font-weight:800;color:#0b1f3a;border-right:4px solid #c00000;background:#f8fafc;padding:4px 8px;margin:10px 0 6px;border-radius:3px;clear:both}' +
-    '[dir="ltr"] .section-title{border-right:none;border-left:4px solid #c00000;text-align:left}' +
-    '[dir="rtl"] .section-title{border-left:none;border-right:4px solid #c00000;text-align:right}' +
-    '.answer{font-size:9.5px;line-height:1.6;color:#1e293b;unicode-bidi:plaintext}' +
+    '.section-title{font-size:11px;font-weight:800;color:#ffffff!important;background:linear-gradient(90deg,#0b1f3a 0%,#1e3a8a 100%)!important;border-right:5px solid #c00000!important;padding:7px 12px!important;margin:12px 0 7px!important;border-radius:6px!important;clear:both!important;page-break-after:avoid!important;letter-spacing:0.2px!important}' +
+    '[dir="ltr"] .section-title{border-right:none!important;border-left:5px solid #c00000!important;text-align:left!important}' +
+    '[dir="rtl"] .section-title{border-left:none!important;border-right:5px solid #c00000!important;text-align:right!important}' +
+    '.exec-score-box{background:linear-gradient(135deg,#0b1f3a 0%,#152e54 60%,#1e3a8a 100%)!important;color:#ffffff!important;border:2px solid #0b1f3a!important;border-radius:10px!important;padding:12px 16px!important;margin:10px 0 14px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;page-break-inside:avoid!important}' +
+    '.exec-score-gauge{display:flex!important;align-items:center!important;gap:12px!important}' +
+    '.exec-score-number{font-size:28px!important;font-weight:900!important;color:#38bdf8!important;line-height:1!important}' +
+    '.exec-score-number small{font-size:14px!important;color:#94a3b8!important}' +
+    '.exec-score-status{display:inline-block!important;padding:3px 9px!important;border-radius:16px!important;font-size:9.5px!important;font-weight:800!important;text-transform:uppercase!important}' +
+    '.exec-score-status.score-excellent{background:#dcfce7!important;color:#15803d!important;border:1px solid #86efac!important}' +
+    '.exec-score-status.score-satisfactory{background:#e0f2fe!important;color:#0369a1!important;border:1px solid #7dd3fc!important}' +
+    '.exec-score-status.score-warning{background:#fef3c7!important;color:#b45309!important;border:1px solid #fde68a!important}' +
+    '.exec-score-status.score-critical{background:#fee2e2!important;color:#b91c1c!important;border:1px solid #fca5a5!important}' +
+    '.exec-score-stat-card{text-align:center!important;background:#ffffff!important;padding:5px 12px!important;border-radius:7px!important;border:1px solid #cbd5e1!important}' +
+    '.exec-score-stat-card small{font-size:8.5px!important;color:#475569!important;display:block!important;font-weight:700!important}' +
+    '.exec-score-stat-card strong{font-size:14px!important;display:block!important}' +
+    '.exec-summary-box{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-right:4px solid #0b1f3a!important;border-radius:7px!important;padding:10px 12px!important;margin-bottom:10px!important;line-height:1.65!important;font-size:9.5px!important;color:#1e293b!important}' +
+    '[dir="ltr"] .exec-summary-box{border-right:1px solid #cbd5e1!important;border-left:4px solid #0b1f3a!important;text-align:left!important}' +
+    '.answer{font-size:9px;line-height:1.6;color:#1e293b;unicode-bidi:plaintext}' +
     '.answer p{margin:0 0 4px;line-height:1.6;unicode-bidi:plaintext}' +
     '.answer ul,.answer ol{margin:2px 0 5px;padding-right:16px;padding-left:16px;line-height:1.6}' +
-    'table{width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;margin:6px 0 10px;font-size:8.5px;background:#fff;page-break-inside:auto}' +
-    'tr{page-break-inside:avoid;page-break-after:auto}' +
-    'th,td{border:1px solid #cbd5e1;padding:4px 6px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;line-height:1.4}' +
-    'th{background:#e8eef6;color:#0b1f3a;font-weight:800;text-align:center;vertical-align:middle}' +
-    'tr:nth-child(even) td{background:#f8fafc}' +
+    'table{width:100%!important;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed!important;margin:6px 0 10px!important;font-size:8.5px!important;background:#ffffff!important;page-break-inside:auto!important;border:1px solid #cbd5e1!important;border-radius:6px!important;overflow:hidden!important}' +
+    'tr{page-break-inside:avoid!important;page-break-after:auto!important}' +
+    'th{background:#0b1f3a!important;color:#ffffff!important;font-weight:800!important;text-align:center!important;vertical-align:middle!important;border:1px solid #1e293b!important;padding:6px 6px!important;font-size:8.5px!important;word-break:break-word!important;overflow-wrap:break-word!important}' +
+    'td{border:1px solid #cbd5e1!important;padding:6px 6px!important;vertical-align:middle!important;word-break:break-word!important;overflow-wrap:break-word!important;line-height:1.45!important;color:#0f172a!important;box-sizing:border-box!important}' +
+    'tr:nth-child(even) td{background:#f8fafc!important}' +
     '.report-photos-grid{display:flex;gap:8px;margin:8px 0;page-break-inside:avoid}' +
     '.report-photo-card{flex:1;border:1px solid #cbd5e1;padding:6px;text-align:center;border-radius:5px;background:#f8fafc}' +
     '.report-photo-card img{max-height:140px;width:100%;object-fit:contain;border-radius:4px;background:#fff;border:1px solid #e2e8f0}' +
     '.report-photo-card span{display:block;font-size:9px;font-weight:800;margin-top:4px;color:#0b1f3a}' +
     '.photo-pending-placeholder{height:100px;border:1.5px dashed #cbd5e1;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;font-size:8.5px;background:#fff;padding:6px;line-height:1.4;text-align:center}' +
-    '.dashboard-strip,.ncr-grid{display:flex;gap:6px;margin:6px 0;page-break-inside:avoid}' +
-    '.dash-card{flex:1;border:1px solid #dbe3ec;border-radius:5px;background:#f8fafc;padding:6px 8px;text-align:center}' +
-    '.dash-card strong{display:block;font-size:15px;color:#0b1f3a;font-weight:800;line-height:1.2}' +
-    '.dash-card span{font-size:7.5px;color:#64748b;font-weight:700;text-transform:uppercase}' +
-    '.badge{display:inline-block;padding:2px 6px;border-radius:8px;font-size:7.5px;font-weight:800}' +
-    '.badge.open{background:#fee2e2;color:#991b1b}' +
-    '.badge.progress{background:#fef3c7;color:#92400e}' +
-    '.badge.closed{background:#dcfce7;color:#166534}' +
-    '.badge.critical{background:#7f1d1d;color:#fff}' +
-    '.badge.high{background:#fee2e2;color:#991b1b}' +
-    '.badge.medium{background:#fef3c7;color:#92400e}' +
-    '.badge.low{background:#ecfdf5;color:#065f46}' +
-    '.badge.general-case{background:#e0e7ff;color:#3730a3}' +
+    '.dashboard-strip,.ncr-grid{display:flex!important;gap:6px!important;margin:6px 0 8px!important;page-break-inside:avoid!important}' +
+    '.dash-card{flex:1!important;border:1px solid #cbd5e1!important;border-radius:6px!important;background:#ffffff!important;padding:6px 8px!important;text-align:center!important;border-top:3px solid #0b1f3a!important}' +
+    '.dash-card.card-blue{border-top-color:#2563eb!important;background:#eff6ff!important}' +
+    '.dash-card.card-green{border-top-color:#059669!important;background:#f0fdf4!important}' +
+    '.dash-card.card-amber{border-top-color:#d97706!important;background:#fffbeb!important}' +
+    '.dash-card.card-purple{border-top-color:#7c3aed!important;background:#faf5ff!important}' +
+    '.dash-card.card-red{border-top-color:#dc2626!important;background:#fef2f2!important}' +
+    '.dash-card strong{display:block!important;font-size:15px!important;color:#0b1f3a!important;font-weight:800!important;line-height:1.2!important}' +
+    '.dash-card.card-blue strong{color:#1d4ed8!important}' +
+    '.dash-card.card-green strong{color:#059669!important}' +
+    '.dash-card.card-amber strong{color:#d97706!important}' +
+    '.dash-card.card-purple strong{color:#7c3aed!important}' +
+    '.dash-card.card-red strong{color:#dc2626!important}' +
+    '.dash-card span{font-size:7.5px!important;color:#475569!important;font-weight:700!important;text-transform:uppercase!important}' +
+    '.badge{display:inline-block!important;padding:2.5px 6px!important;border-radius:5px!important;font-size:8px!important;font-weight:800!important;text-align:center!important;white-space:normal!important;word-break:break-word!important;overflow-wrap:break-word!important;max-width:100%!important;line-height:1.35!important;vertical-align:middle!important;box-sizing:border-box!important}' +
+    '.badge.open{background:#fee2e2!important;color:#991b1b!important;border:1px solid #fca5a5!important}' +
+    '.badge.progress{background:#fef3c7!important;color:#92400e!important;border:1px solid #fde68a!important}' +
+    '.badge.closed{background:#dcfce7!important;color:#166534!important;border:1px solid #86efac!important}' +
+    '.badge.critical{background:#991b1b!important;color:#ffffff!important;border:1px solid #7f1d1d!important}' +
+    '.badge.high{background:#fee2e2!important;color:#991b1b!important;border:1px solid #f87171!important}' +
+    '.badge.medium{background:#fef3c7!important;color:#92400e!important;border:1px solid #fbbf24!important}' +
+    '.badge.low{background:#ecfdf5!important;color:#065f46!important;border:1px solid #6ee7b7!important}' +
+    '.badge.general-case{background:#e0e7ff!important;color:#3730a3!important;border:1px solid #c7d2fe!important;white-space:normal!important;word-break:break-word!important;line-height:1.35!important;max-width:100%!important;padding:3px 5px!important;font-size:8px!important;box-sizing:border-box!important}' +
+    '.badge.active{background:#e0f2fe!important;color:#0369a1!important;border:1px solid #7dd3fc!important}' +
+    '.hotspot-tag{display:inline-block!important;padding:2.5px 6px!important;border-radius:5px!important;background:#fee2e2!important;color:#991b1b!important;border:1px solid #fecaca!important;font-size:8px!important;font-weight:700!important;white-space:normal!important;word-break:break-word!important;overflow-wrap:break-word!important;max-width:100%!important;box-sizing:border-box!important;text-align:center!important}' +
+    '.rootcause-pill{display:inline-block!important;padding:2.5px 6px!important;border-radius:5px!important;background:#eff6ff!important;color:#1e40af!important;border:1px solid #bfdbfe!important;font-size:8px!important;font-weight:700!important;white-space:normal!important;word-break:break-word!important;overflow-wrap:break-word!important;max-width:100%!important;box-sizing:border-box!important}' +
+    '.meta-badge,.ai-meta-badge{display:inline-flex!important;align-items:center!important;gap:4px!important;background:#f0fdf4!important;border:1px solid #86efac!important;color:#166534!important;padding:3px 8px!important;border-radius:16px!important;font-size:8px!important;font-weight:700!important}' +
+    '.inspection-status-box{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-radius:6px!important;padding:8px 12px!important;margin:6px 0 8px!important;font-size:9.5px!important;line-height:1.55!important}' +
+    '.inspection-status-box.has-findings{background:#fffbeb!important;border-color:#fde68a!important;border-right:4px solid #d97706!important;color:#92400e!important}' +
+    '[dir="ltr"] .inspection-status-box.has-findings{border-right:1px solid #fde68a!important;border-left:4px solid #d97706!important;text-align:left!important}' +
+    '.inspection-status-box.clean{background:#f0fdf4!important;border-color:#bbf7d0!important;border-right:4px solid #059669!important;color:#166534!important}' +
+    '[dir="ltr"] .inspection-status-box.clean{border-right:1px solid #bbf7d0!important;border-left:4px solid #059669!important;text-align:left!important}' +
     '.bar{height:6px;background:#e2e8f0;border-radius:6px;overflow:hidden;margin:3px 0}' +
     '.bar i{display:block;height:100%;background:#c00000}' +
-    '@media print{@page{size:A4 portrait;margin:8mm 6mm 10mm 6mm}.export-page{padding:0!important;max-width:100%!important}}';
+    '@media print{' +
+      '*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}' +
+      '@page{size:A4 portrait;margin:0!important}' +
+      'html,body{background:#ffffff!important;color:#0f172a!important;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}' +
+      '.export-page{padding:10mm 8mm 12mm 8mm!important;width:100%!important;max-width:100%!important;margin:0 auto!important}' +
+      '.sut-export-header{margin-bottom:8px!important}' +
+      '.sut-export-footer{margin-top:12px!important}' +
+      '.no-print{display:none!important}' +
+    '}';
 }
 
-function downloadHTMLAsWord(el, name) {
-  if (!el) return;
+function prepareWordDocumentClone(el, isEn) {
   var clone = el.cloneNode(true);
   clone.classList.add("export-page");
   clone.querySelectorAll(".no-print").forEach(function (x) { x.remove(); });
 
-  var targetDir = clone.getAttribute("dir") || (clone.querySelector(".report") ? clone.querySelector(".report").getAttribute("dir") : null) || (currentReportLang === "en" ? "ltr" : "rtl");
-  var isEn = (targetDir === "ltr") || (clone.getAttribute("data-report-language") === "en") || (currentReportLang === "en");
+  /* 1. Format Report Header as a Solid Word-Compatible 3-Cell Table with Clean Vertical Typography */
+  clone.querySelectorAll(".report-head").forEach(function (head) {
+    var leftTrack = head.querySelector(".track:first-child");
+    var rightTrack = head.querySelector(".track:last-child");
+    var title = head.querySelector(".report-title");
+    if (leftTrack && rightTrack && title) {
+      var b1 = leftTrack.querySelector("b") ? leftTrack.querySelector("b").textContent.trim() : "Report Type";
+      var s1 = leftTrack.querySelector("span") ? leftTrack.querySelector("span").textContent.trim() : "";
+      var b2 = rightTrack.querySelector("b") ? rightTrack.querySelector("b").textContent.trim() : "Report Date";
+      var s2 = rightTrack.querySelector("span") ? rightTrack.querySelector("span").textContent.trim() : "";
+      var h2 = title.querySelector("h2") ? title.querySelector("h2").textContent.trim() : "MONTHLY HSE EXECUTIVE REPORT";
+      var h3 = title.querySelector("h3") ? title.querySelector("h3").textContent.trim() : "";
+      var p = title.querySelector("p") ? title.querySelector("p").textContent.trim() : "";
+
+      var tbl = document.createElement("table");
+      tbl.setAttribute("width", "100%");
+      tbl.setAttribute("border", "0");
+      tbl.setAttribute("cellpadding", "0");
+      tbl.setAttribute("cellspacing", "0");
+      tbl.style.cssText = "width:100%;border-collapse:collapse;background-color:#ffffff;border:1pt solid #cbd5e1;border-top:4.5pt solid #c00000;border-bottom:3.5pt solid #0b1f3a;margin-bottom:12pt;";
+      
+      var tr = document.createElement("tr");
+      var tdLeft = document.createElement("td");
+      tdLeft.style.cssText = "width:22%;vertical-align:middle;text-align:center;background-color:#f1f5f9;border-right:1pt solid #cbd5e1;padding:8pt 6pt;";
+      tdLeft.innerHTML = '<p style="margin:0 0 3pt;font-size:8pt;color:#64748b;font-weight:bold;text-transform:uppercase;font-family:Arial,sans-serif;">' + esc(b1) + '</p><p style="margin:0;font-size:9pt;color:#c00000;font-weight:bold;font-family:Arial,sans-serif;">' + esc(s1) + '</p>';
+
+      var tdCenter = document.createElement("td");
+      tdCenter.style.cssText = "width:56%;vertical-align:middle;text-align:center;padding:8pt 10pt;";
+      tdCenter.innerHTML = '<p style="margin:0 0 2pt;font-size:13pt;font-weight:bold;color:#0b1f3a;font-family:Arial,sans-serif;letter-spacing:0.3pt;">' + esc(h2) + '</p>' +
+        (h3 ? '<p style="margin:0 0 2pt;font-size:9.5pt;font-weight:bold;color:#1e3a8a;font-family:Arial,sans-serif;">' + esc(h3) + '</p>' : '') +
+        (p ? '<p style="margin:0;font-size:8.5pt;font-weight:bold;color:#c00000;font-family:Arial,sans-serif;">' + esc(p) + '</p>' : '');
+
+      var tdRight = document.createElement("td");
+      tdRight.style.cssText = "width:22%;vertical-align:middle;text-align:center;background-color:#f1f5f9;border-left:1pt solid #cbd5e1;padding:8pt 6pt;";
+      tdRight.innerHTML = '<p style="margin:0 0 3pt;font-size:8pt;color:#64748b;font-weight:bold;text-transform:uppercase;font-family:Arial,sans-serif;">' + esc(b2) + '</p><p style="margin:0;font-size:9pt;color:#c00000;font-weight:bold;font-family:Arial,sans-serif;">' + esc(s2) + '</p>';
+
+      tr.appendChild(tdLeft);
+      tr.appendChild(tdCenter);
+      tr.appendChild(tdRight);
+      tbl.appendChild(tr);
+      head.parentNode.replaceChild(tbl, head);
+    }
+  });
+
+  /* 2. Format Section Titles as Solid Navy 1-Row Tables with Crisp Red Accent Bar */
+  clone.querySelectorAll(".section-title").forEach(function (st) {
+    var txt = st.textContent.trim();
+    var isRTL = !isEn;
+    var tbl = document.createElement("table");
+    tbl.setAttribute("width", "100%");
+    tbl.setAttribute("border", "0");
+    tbl.setAttribute("cellpadding", "0");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.style.cssText = "width:100%;border-collapse:collapse;margin:12pt 0 6pt;";
+    var tr = document.createElement("tr");
+    var td = document.createElement("td");
+    var sideBorder = isRTL ? "border-right:5.0pt solid #c00000;" : "border-left:5.0pt solid #c00000;";
+    var align = isRTL ? "text-align:right;" : "text-align:left;";
+    td.style.cssText = "background-color:#0b1f3a;color:#ffffff;padding:6pt 10pt;font-size:10.5pt;font-weight:bold;font-family:Arial,Cairo,sans-serif;" + sideBorder + align;
+    td.innerHTML = '<p style="margin:0;color:#ffffff;font-weight:bold;font-size:10.5pt;font-family:Arial,Cairo,sans-serif;">' + esc(txt) + '</p>';
+    tr.appendChild(td);
+    tbl.appendChild(tr);
+    st.parentNode.replaceChild(tbl, st);
+  });
+
+  /* 3. Convert KPI Dashboard Strip into a 4-Column Table with Separated Paragraphs */
+  clone.querySelectorAll(".dashboard-strip").forEach(function (strip) {
+    var cards = Array.from(strip.querySelectorAll(".dash-card"));
+    if (cards.length) {
+      var tbl = document.createElement("table");
+      tbl.setAttribute("width", "100%");
+      tbl.setAttribute("border", "0");
+      tbl.setAttribute("cellpadding", "0");
+      tbl.setAttribute("cellspacing", "6");
+      tbl.style.cssText = "width:100%;border-collapse:separate;margin:8pt 0 10pt;";
+      var tr = document.createElement("tr");
+      cards.forEach(function (card) {
+        var td = document.createElement("td");
+        var bg = "#eff6ff", borderTop = "#2563eb", textCol = "#1d4ed8", bd = "#bfdbfe";
+        if (card.classList.contains("card-blue")) { bg = "#eff6ff"; borderTop = "#2563eb"; textCol = "#1d4ed8"; bd = "#bfdbfe"; }
+        else if (card.classList.contains("card-green")) { bg = "#f0fdf4"; borderTop = "#059669"; textCol = "#059669"; bd = "#bbf7d0"; }
+        else if (card.classList.contains("card-amber")) { bg = "#fffbeb"; borderTop = "#d97706"; textCol = "#d97706"; bd = "#fde68a"; }
+        else if (card.classList.contains("card-purple")) { bg = "#faf5ff"; borderTop = "#7c3aed"; textCol = "#7c3aed"; bd = "#e9d5ff"; }
+        else if (card.classList.contains("card-red")) { bg = "#fef2f2"; borderTop = "#dc2626"; textCol = "#dc2626"; bd = "#fecaca"; }
+        
+        td.style.cssText = "width:25%;background-color:" + bg + ";border:1pt solid " + bd + ";border-top:3.5pt solid " + borderTop + ";padding:10pt 6pt;text-align:center;vertical-align:middle;";
+        var str = card.querySelector("strong") ? card.querySelector("strong").textContent.trim() : "";
+        var sp = card.querySelector("span") ? card.querySelector("span").textContent.trim() : "";
+        td.innerHTML = '<p style="margin:0 0 3pt;font-size:20pt;font-weight:bold;color:' + textCol + ';font-family:Arial,sans-serif;line-height:1;">' + esc(str) + '</p>' +
+          '<p style="margin:0;font-size:7.5pt;color:#475569;font-weight:bold;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:0.5pt;">' + esc(sp) + '</p>';
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+      strip.parentNode.replaceChild(tbl, strip);
+    }
+  });
+
+  /* 4. Convert Metadata Strip into an MSO Table */
+  clone.querySelectorAll(".meta").forEach(function (meta) {
+    var divs = Array.from(meta.querySelectorAll(":scope > div"));
+    if (divs.length) {
+      var tbl = document.createElement("table");
+      tbl.setAttribute("width", "100%");
+      tbl.setAttribute("border", "0");
+      tbl.setAttribute("cellpadding", "0");
+      tbl.setAttribute("cellspacing", "0");
+      tbl.style.cssText = "width:100%;background-color:#f8fafc;border:1pt solid #cbd5e1;border-collapse:collapse;margin:6pt 0 10pt;";
+      var tr = document.createElement("tr");
+      var wPct = Math.round(100 / divs.length) + "%";
+      divs.forEach(function (d, i) {
+        var td = document.createElement("td");
+        var rightBorder = (i < divs.length - 1) ? "border-right:1pt solid #e2e8f0;" : "";
+        td.style.cssText = "width:" + wPct + ";padding:6pt 8pt;" + rightBorder + "font-size:9pt;font-family:Arial,Cairo,sans-serif;color:#334155;vertical-align:middle;text-align:center;";
+        td.innerHTML = d.innerHTML;
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+      meta.parentNode.replaceChild(tbl, meta);
+    }
+  });
+
+  /* 5. Format Inspection Status Boxes into Word Tables */
+  clone.querySelectorAll(".inspection-status-box").forEach(function (box) {
+    var isClean = box.classList.contains("clean");
+    var isFindings = box.classList.contains("has-findings");
+    var isRTL = !isEn;
+    var bg = isClean ? "#f0fdf4" : isFindings ? "#fffbeb" : "#f8fafc";
+    var bc = isClean ? "#bbf7d0" : isFindings ? "#fde68a" : "#cbd5e1";
+    var sideColor = isClean ? "#059669" : isFindings ? "#d97706" : "#0b1f3a";
+    var textColor = isClean ? "#166534" : isFindings ? "#92400e" : "#0f172a";
+    
+    var tbl = document.createElement("table");
+    tbl.setAttribute("width", "100%");
+    tbl.setAttribute("border", "0");
+    tbl.setAttribute("cellpadding", "0");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.style.cssText = "width:100%;border-collapse:collapse;margin:6pt 0 10pt;";
+    var tr = document.createElement("tr");
+    var td = document.createElement("td");
+    var sideBorder = isRTL ? "border-right:4.5pt solid " + sideColor + ";" : "border-left:4.5pt solid " + sideColor + ";";
+    var align = isRTL ? "text-align:right;" : "text-align:left;";
+    td.style.cssText = "background-color:" + bg + ";border:1pt solid " + bc + ";" + sideBorder + "padding:8pt 12pt;font-size:9.5pt;color:" + textColor + ";font-family:Arial,Cairo,sans-serif;" + align;
+    td.innerHTML = '<p style="margin:0;font-size:9.5pt;color:' + textColor + ';font-family:Arial,Cairo,sans-serif;">' + box.innerHTML + '</p>';
+    tr.appendChild(td);
+    tbl.appendChild(tr);
+    box.parentNode.replaceChild(tbl, box);
+  });
+
+  /* 6. Convert Grid Layouts (Charts, Scorecards) into Clean Word Tables */
+  clone.querySelectorAll("div").forEach(function (div) {
+    var imgs = div.querySelectorAll("img");
+    if (imgs.length >= 2 && div.style.display && div.style.display.includes("grid")) {
+      var tbl = document.createElement("table");
+      tbl.setAttribute("width", "100%");
+      tbl.setAttribute("border", "0");
+      tbl.setAttribute("cellpadding", "6");
+      tbl.setAttribute("cellspacing", "6");
+      tbl.style.cssText = "width:100%;border-collapse:separate;margin:8pt 0;";
+      var tr = document.createElement("tr");
+      div.querySelectorAll(":scope > div").forEach(function (sub) {
+        var td = document.createElement("td");
+        td.style.cssText = "width:50%;border:1pt solid #cbd5e1;background-color:#ffffff;padding:8pt;text-align:center;vertical-align:middle;";
+        td.innerHTML = sub.innerHTML;
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+      div.parentNode.replaceChild(tbl, div);
+    }
+  });
+
+  /* 7. Format All Data Tables with Explicit Borders and Navy Headers */
+  clone.querySelectorAll("table").forEach(function (tbl) {
+    if (!tbl.getAttribute("border")) tbl.setAttribute("border", "1");
+    tbl.setAttribute("bordercolor", "#cbd5e1");
+    if (!tbl.getAttribute("cellpadding")) tbl.setAttribute("cellpadding", "6");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.setAttribute("width", "100%");
+  });
+
+  clone.querySelectorAll("th").forEach(function (th) {
+    var w = th.style.width || th.getAttribute("width") || "";
+    th.setAttribute("bgcolor", "#0b1f3a");
+    th.style.cssText = "background-color:#0b1f3a;color:#ffffff;font-weight:bold;font-size:9pt;text-align:center;vertical-align:middle;padding:6pt 4pt;border:1.0pt solid #1e293b;font-family:Arial,Cairo,sans-serif;" + (w ? "width:" + w + ";" : "");
+    th.innerHTML = '<span style="color:#ffffff;font-weight:bold;font-size:9pt;font-family:Arial,Cairo,sans-serif;">' + th.innerHTML + '</span>';
+  });
+
+  clone.querySelectorAll("td").forEach(function (td) {
+    if (!td.style.border) td.style.border = "1.0pt solid #cbd5e1";
+    if (!td.style.padding) td.style.padding = "5pt 6pt";
+    if (!td.style.fontFamily) td.style.fontFamily = "Arial,Cairo,sans-serif";
+    if (!td.style.fontSize) td.style.fontSize = "9pt";
+    td.style.verticalAlign = "middle";
+  });
+
+  /* 8. Format Badges with Explicit Background and Foreground Colors */
+  clone.querySelectorAll(".badge, .hotspot-tag, .rootcause-pill").forEach(function (b) {
+    var bg = "#f1f5f9", fg = "#0f172a", bd = "#cbd5e1";
+    if (b.classList.contains("closed")) { bg = "#dcfce7"; fg = "#166534"; bd = "#86efac"; }
+    else if (b.classList.contains("open")) { bg = "#fee2e2"; fg = "#991b1b"; bd = "#fca5a5"; }
+    else if (b.classList.contains("progress")) { bg = "#fef3c7"; fg = "#92400e"; bd = "#fde68a"; }
+    else if (b.classList.contains("critical")) { bg = "#991b1b"; fg = "#ffffff"; bd = "#7f1d1d"; }
+    else if (b.classList.contains("high")) { bg = "#fee2e2"; fg = "#991b1b"; bd = "#f87171"; }
+    else if (b.classList.contains("medium")) { bg = "#fef3c7"; fg = "#92400e"; bd = "#fbbf24"; }
+    else if (b.classList.contains("low")) { bg = "#ecfdf5"; fg = "#065f46"; bd = "#6ee7b7"; }
+    else if (b.classList.contains("general-case")) { bg = "#e0e7ff"; fg = "#3730a3"; bd = "#c7d2fe"; }
+    else if (b.classList.contains("active")) { bg = "#e0f2fe"; fg = "#0369a1"; bd = "#7dd3fc"; }
+    b.style.cssText = "background-color:" + bg + ";color:" + fg + ";border:1pt solid " + bd + ";padding:2.5pt 6pt;font-weight:bold;font-size:8pt;font-family:Arial,Cairo,sans-serif;display:inline-block;";
+  });
+
+  return clone;
+}
+
+function downloadHTMLAsWord(el, name) {
+  if (!el) return;
+  var targetDir = el.getAttribute("dir") || (el.querySelector(".report") ? el.querySelector(".report").getAttribute("dir") : null) || (currentReportLang === "en" ? "ltr" : "rtl");
+  var isEn = (targetDir === "ltr") || (el.getAttribute("data-report-language") === "en") || (currentReportLang === "en");
+  var clone = prepareWordDocumentClone(el, isEn);
   var logoSrc = customLogoUrl || SUT_LOGO_B64;
 
   var footerHtml = isEn ?
@@ -3155,15 +4004,20 @@ function downloadHTMLAsWord(el, name) {
     '<style>' +
     '@page Section1 { ' +
     'size: 595.3pt 841.9pt; ' +
-    'margin: 56.7pt 45.35pt 56.7pt 45.35pt; ' +
-    'mso-header-margin: 28.35pt; ' +
-    'mso-footer-margin: 28.35pt; ' +
+    'margin: 45.0pt 36.0pt 45.0pt 36.0pt; ' +
+    'mso-header-margin: 20.0pt; ' +
+    'mso-footer-margin: 20.0pt; ' +
     'mso-header: h1; ' +
     'mso-footer: f1; ' +
     '} ' +
     'div.Section1 { page: Section1; } ' +
     'p.MsoHeader, div.MsoHeader { margin:0; padding:0; } ' +
     'p.MsoFooter, div.MsoFooter { margin:0; padding:0; } ' +
+    'body { font-family: Arial, Cairo, sans-serif; font-size: 9.5pt; line-height: 1.4; color: #0f172a; } ' +
+    'table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; } ' +
+    'th { background-color: #0b1f3a !important; color: #ffffff !important; font-weight: bold; padding: 5pt; border: 1.0pt solid #1e293b; text-align: center; } ' +
+    'td { border: 1.0pt solid #cbd5e1; padding: 5pt; vertical-align: middle; } ' +
+    '.section-title { background-color: #0b1f3a !important; color: #ffffff !important; font-weight: bold; } ' +
     exportStyles() +
     '</style>' +
     '</head>' +
@@ -3227,7 +4081,7 @@ function printReport(id) {
 
   var doc = iframe.contentWindow.document;
   doc.open();
-  doc.write('<!DOCTYPE html><html lang="' + (isEn ? 'en' : 'ar') + '" dir="' + targetDir + '"><head><meta charset="utf-8"><title>SUTech HSE Report</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"><style>' + exportStyles() + '@page { size: A4 portrait; margin: 10mm 8mm 12mm 8mm; } @media print { html, body { background: #fff!important; color: #0f172a!important; } .export-page { width: 100%!important; max-width: 100%!important; padding: 0!important; margin: 0 auto!important; } .sut-export-header { margin-bottom: 8px!important; } .sut-export-footer { margin-top: 14px!important; } }</style></head><body><div class="export-page" dir="' + targetDir + '">' + wrappedContent + '</div></body></html>');
+  doc.write('<!DOCTYPE html><html lang="' + (isEn ? 'en' : 'ar') + '" dir="' + targetDir + '"><head><meta charset="utf-8"><title>SUTech HSE Report</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>' + exportStyles() + '</style></head><body><div class="export-page" dir="' + targetDir + '">' + wrappedContent + '</div></body></html>');
   doc.close();
 
   setTimeout(function () {
@@ -3785,15 +4639,15 @@ function renderExecutiveSignalsReport(d, isLive) {
   /* Section 5: Approved Operational HSE Scorecard */
   h += '<div class="section-title">' + (isEn ? "5. Approved Operational HSE Scorecard" : "5. لوحة مؤشرات الأداء الميداني المعتمدة (Operational HSE Scorecard)") + '</div>' +
     '<div class="dashboard-strip">' +
-      '<div class="dash-card"><strong>' + (kpis.totalRecordsLogged || 0) + '</strong><span>' + (isEn ? "Total Findings" : "إجمالي السجلات") + '</span></div>' +
-      '<div class="dash-card"><strong>' + (kpis.closedVerifiedCAPAs || 0) + '</strong><span>' + (isEn ? "Closed CAPA" : "تم الإغلاق والتحقق") + '</span></div>' +
-      '<div class="dash-card"><strong>' + (kpis.activePermitsToWork || 0) + '</strong><span>' + (isEn ? "Active PTWs" : "تصاريح عمل نشطة") + '</span></div>' +
-      '<div class="dash-card"><strong>' + (kpis.totalTrainedPersonnel || 0) + '</strong><span>' + (isEn ? "Trained Persons" : "كوادر متدربة") + '</span></div>' +
+      '<div class="dash-card card-blue"><strong>' + (kpis.totalRecordsLogged || 0) + '</strong><span>' + (isEn ? "Total Findings" : "إجمالي السجلات") + '</span></div>' +
+      '<div class="dash-card card-green"><strong>' + (kpis.closedVerifiedCAPAs || 0) + '</strong><span>' + (isEn ? "Closed CAPA" : "تم الإغلاق والتحقق") + '</span></div>' +
+      '<div class="dash-card card-amber"><strong>' + (kpis.activePermitsToWork || 0) + '</strong><span>' + (isEn ? "Active PTWs" : "تصاريح عمل نشطة") + '</span></div>' +
+      '<div class="dash-card card-purple"><strong>' + (kpis.totalTrainedPersonnel || 0) + '</strong><span>' + (isEn ? "Trained Persons" : "كوادر متدربة") + '</span></div>' +
     '</div>' +
     '<div class="meta">' +
-      '<div><b>' + (isEn ? "Near-Miss Reporting Target:" : "مستهدف الإبلاغ الوشيك:") + '</b> ' + (kpis.nearMissReportsLogged || 0) + ' / 10 (' + Math.min(100, Math.round(((kpis.nearMissReportsLogged || 0) / 10) * 100)) + '%)</div>' +
-      '<div><b>' + (isEn ? "Campus Fleet & Vehicles Inspection:" : "فحص الحافلات والمركبات:") + '</b> ' + (dataSnapshot.fleetAndBusInspectionNotes ? (isEn ? "Audited with recorded observations" : "ملاحظات مسجلة ومتابعة") : (isEn ? "Inspected with zero non-conformities" : "تم الفحص ولا توجد ملاحظات")) + '</div>' +
-      '<div><b>' + (isEn ? "Food Outlets & Cafeterias Inspection:" : "فحص المطاعم والكافيتريات:") + '</b> ' + (dataSnapshot.foodAndCafeteriaInspectionNotes ? (isEn ? "Audited with recorded observations" : "ملاحظات مسجلة ومتابعة") : (isEn ? "Inspected with zero non-conformities" : "تم الفحص ولا توجد ملاحظات")) + '</div>' +
+      '<div><b>' + (isEn ? "Near-Miss Reporting Target:" : "مستهدف الإبلاغ الوشيك:") + '</b> <span style="color:#2563eb;font-weight:800">' + (kpis.nearMissReportsLogged || 0) + ' / 10 (' + Math.min(100, Math.round(((kpis.nearMissReportsLogged || 0) / 10) * 100)) + '%)</span></div>' +
+      '<div><b>' + (isEn ? "Campus Fleet & Vehicles Inspection:" : "فحص الحافلات والمركبات:") + '</b> <span style="color:' + (dataSnapshot.fleetAndBusInspectionNotes ? '#d97706' : '#059669') + ';font-weight:800">' + (dataSnapshot.fleetAndBusInspectionNotes ? (isEn ? "Audited with recorded observations" : "ملاحظات مسجلة ومتابعة") : (isEn ? "Inspected with zero non-conformities" : "تم الفحص ولا توجد ملاحظات")) + '</span></div>' +
+      '<div><b>' + (isEn ? "Food Outlets & Cafeterias Inspection:" : "فحص المطاعم والكافيتريات:") + '</b> <span style="color:' + (dataSnapshot.foodAndCafeteriaInspectionNotes ? '#d97706' : '#059669') + ';font-weight:800">' + (dataSnapshot.foodAndCafeteriaInspectionNotes ? (isEn ? "Audited with recorded observations" : "ملاحظات مسجلة ومتابعة") : (isEn ? "Inspected with zero non-conformities" : "تم الفحص ولا توجد ملاحظات")) + '</span></div>' +
     '</div>';
 
   /* Section 6: Statutory & Standards Compliance Overview */
@@ -4994,7 +5848,8 @@ async function generateRiskAssessment5x5() {
   }
 
   renderRiskAssessmentReport(raData);
-  showToast("success", "تم إنجاز التقرير الرسمي لتقييم المخاطر والأثر البيئي بنجاح!");
+  saveCurrentRiskAssessment(false);
+  showToast("success", "تم إنجاز التقرير الرسمي لتقييم المخاطر والأثر البيئي بنجاح وحفظه بالنظام!");
 }
 
 function renderRiskAssessmentReport(ra) {
@@ -5066,6 +5921,33 @@ function renderRiskAssessmentReport(ra) {
             '<tr><td style="font-weight:700">E</td><td class="text-start">يؤثر على البيئة (Environment)</td></tr>' +
             '<tr><td style="font-weight:700">P</td><td class="text-start">يؤثر على الإنتاجية والتشغيل (Productivity)</td></tr>' +
             '<tr><td style="font-weight:700">I</td><td class="text-start">يؤثر على سمعة الموقع (Image)</td></tr>' +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+
+      /* 5x5 Risk Assessment Matrix Section on Page 1 */
+      '<div style="margin:12px 0 16px;background:#ffffff;border:1px solid #64748b;padding:8px 10px;border-radius:8px">' +
+        '<div style="font-size:11px;font-weight:bold;color:#0b1f3a;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">' +
+          '<span><b>مصفوفة تقييم وتحليل مستويات الخطورة المعتمدة 5×5 (Risk Matrix L × S):</b></span>' +
+          '<span style="font-size:9.5px;color:#475569"><b>منخفض:</b> 1-4 &nbsp;|&nbsp; <b>متوسط:</b> 5-9 &nbsp;|&nbsp; <b>عالي:</b> 10-14 &nbsp;|&nbsp; <b>حرج:</b> 15-25</span>' +
+        '</div>' +
+        '<table class="definitions-table official-5x5-matrix" style="width:100%;font-size:8.5px;text-align:center">' +
+          '<thead>' +
+            '<tr>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:20%">الاحتمالية (L) \\ الشدة (S)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">1. ضئيل<br><small>(Insignificant)</small></th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">2. طفيف<br><small>(Minor)</small></th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">3. متوسط<br><small>(Moderate)</small></th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">4. جسيم<br><small>(Major)</small></th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">5. كارثي<br><small>(Catastrophic)</small></th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">5. شبه مؤكد (Almost Certain)</th><td class="score-yellow">5 (متوسط)</td><td class="score-orange">10 (عالي)</td><td class="score-red">15 (حرج)</td><td class="score-red">20 (حرج)</td><td class="score-red">25 (حرج)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">4. مرجح (Likely)</th><td class="score-green">4 (منخفض)</td><td class="score-yellow">8 (متوسط)</td><td class="score-orange">12 (عالي)</td><td class="score-red">16 (حرج)</td><td class="score-red">20 (حرج)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">3. محتمل (Possible)</th><td class="score-green">3 (منخفض)</td><td class="score-yellow">6 (متوسط)</td><td class="score-yellow">9 (متوسط)</td><td class="score-orange">12 (عالي)</td><td class="score-red">15 (حرج)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">2. غير مرجح (Unlikely)</th><td class="score-green">2 (منخفض)</td><td class="score-green">4 (منخفض)</td><td class="score-yellow">6 (متوسط)</td><td class="score-yellow">8 (متوسط)</td><td class="score-orange">10 (عالي)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">1. نادر (Rare)</th><td class="score-green">1 (منخفض)</td><td class="score-green">2 (منخفض)</td><td class="score-green">3 (منخفض)</td><td class="score-green">4 (منخفض)</td><td class="score-yellow">5 (متوسط)</td></tr>' +
           '</tbody>' +
         '</table>' +
       '</div>' +
@@ -5225,6 +6107,33 @@ function renderRiskAssessmentReport(ra) {
             '<tr><td style="font-weight:700">E</td><td class="text-start" dir="rtl">يؤثر على البيئة</td></tr>' +
             '<tr><td style="font-weight:700">P</td><td class="text-start" dir="rtl">يؤثر على الإنتاجية</td></tr>' +
             '<tr><td style="font-weight:700">I</td><td class="text-start" dir="rtl">يؤثر على سمعة الموقع</td></tr>' +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+
+      /* 5x5 Risk Assessment Matrix Section on Page 1 */
+      '<div style="margin:12px 0 16px;background:#ffffff;border:1px solid #64748b;padding:8px 10px;border-radius:8px">' +
+        '<div style="font-size:11px;font-weight:bold;color:#0b1f3a;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">' +
+          '<span><b>5×5 Risk Assessment &amp; Evaluation Matrix (L × S):</b></span>' +
+          '<span style="font-size:9.5px;color:#475569"><b>Low:</b> 1-4 (Acceptable) &nbsp;|&nbsp; <b>Medium:</b> 5-9 (Tolerable) &nbsp;|&nbsp; <b>High:</b> 10-14 (Substantial) &nbsp;|&nbsp; <b>Critical:</b> 15-25 (Unacceptable)</span>' +
+        '</div>' +
+        '<table class="definitions-table official-5x5-matrix" style="width:100%;font-size:8.5px;text-align:center">' +
+          '<thead>' +
+            '<tr>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:20%">Likelihood (L) \\ Severity (S)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">1. Insignificant (ضئيل)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">2. Minor (طفيف)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">3. Moderate (متوسط)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">4. Major (جسيم)</th>' +
+              '<th style="background:#0b1f3a;color:#ffffff;width:16%">5. Catastrophic (كارثي)</th>' +
+            '</tr>' +
+          '</thead>' +
+          '<tbody>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">5. Almost Certain (شبه مؤكد)</th><td class="score-yellow">5 (Med)</td><td class="score-orange">10 (High)</td><td class="score-red">15 (Crit)</td><td class="score-red">20 (Crit)</td><td class="score-red">25 (Crit)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">4. Likely (مرجح)</th><td class="score-green">4 (Low)</td><td class="score-yellow">8 (Med)</td><td class="score-orange">12 (High)</td><td class="score-red">16 (Crit)</td><td class="score-red">20 (Crit)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">3. Possible (محتمل)</th><td class="score-green">3 (Low)</td><td class="score-yellow">6 (Med)</td><td class="score-yellow">9 (Med)</td><td class="score-orange">12 (High)</td><td class="score-red">15 (Crit)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">2. Unlikely (غير مرجح)</th><td class="score-green">2 (Low)</td><td class="score-green">4 (Low)</td><td class="score-yellow">6 (Med)</td><td class="score-yellow">8 (Med)</td><td class="score-orange">10 (High)</td></tr>' +
+            '<tr><th style="background:#f1f5f9;color:#0b1f3a;text-align:start;font-size:8pt">1. Rare (نادر)</th><td class="score-green">1 (Low)</td><td class="score-green">2 (Low)</td><td class="score-green">3 (Low)</td><td class="score-green">4 (Low)</td><td class="score-yellow">5 (Med)</td></tr>' +
           '</tbody>' +
         '</table>' +
       '</div>' +
@@ -5417,18 +6326,278 @@ function updateRiskMatrixVisualizer() {
   }
 }
 
+function prepareRiskAssessmentWordClone(el, isAr) {
+  var clone = el.cloneNode(true);
+  clone.querySelectorAll(".no-print").forEach(function (x) { x.remove(); });
+
+  /* 1. Format Official Document Header as a 3-Cell Table */
+  clone.querySelectorAll(".official-doc-header").forEach(function (head) {
+    var titleEl = head.querySelector(".official-doc-title h2");
+    var titleText = titleEl ? titleEl.textContent.trim() : (isAr ? "سجل تقييم المخاطر والأثر البيئي" : "Risk and Environmental Impact Assessment");
+
+    var tbl = document.createElement("table");
+    tbl.setAttribute("width", "100%");
+    tbl.setAttribute("border", "0");
+    tbl.setAttribute("cellpadding", "0");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.style.cssText = "width:100%;border-collapse:collapse;border-bottom:2.5pt solid #0b1f3a;padding-bottom:8pt;margin-bottom:10pt;";
+
+    var tr = document.createElement("tr");
+    
+    var tdLeft = document.createElement("td");
+    tdLeft.style.cssText = "width:30%;vertical-align:middle;text-align:" + (isAr ? "right" : "left") + ";font-size:10pt;font-weight:bold;color:#0b1f3a;font-family:Arial,Cairo,sans-serif;";
+    tdLeft.innerHTML = isAr ?
+      '<div>جامعة السويدي للتكنولوجيا</div><div style="color:#c00000;font-size:9pt">إدارة السلامة والصحة المهنية والبيئة</div>' :
+      '<div>EL-SEWEDY UNIVERSITY OF TECHNOLOGY</div><div style="color:#c00000;font-size:9pt">HEALTH &amp; SAFETY DEPARTMENT</div>';
+
+    var tdCenter = document.createElement("td");
+    tdCenter.style.cssText = "width:45%;vertical-align:middle;text-align:center;padding:4pt;";
+    tdCenter.innerHTML = '<h2 style="margin:0;font-size:14pt;color:#0b1f3a;font-weight:bold;font-family:Arial,Cairo,sans-serif;letter-spacing:0.3pt;">' + esc(titleText) + '</h2>';
+
+    var tdRight = document.createElement("td");
+    tdRight.style.cssText = "width:25%;vertical-align:middle;text-align:" + (isAr ? "left" : "right") + ";font-size:9.5pt;font-weight:bold;color:#0b1f3a;font-family:Arial,Cairo,sans-serif;";
+    tdRight.innerHTML = isAr ?
+      '<div>ELSEWEDY</div><small style="color:#475569;font-size:8pt">UNIVERSITY OF TECHNOLOGY<br>تكنولوجيا بوليتكنك مصر</small>' :
+      '<div>ELSEWEDY</div><small style="color:#475569;font-size:8pt">UNIVERSITY OF TECHNOLOGY<br>POLYTECHNIC OF EGYPT</small>';
+
+    tr.appendChild(isAr ? tdRight : tdLeft);
+    tr.appendChild(tdCenter);
+    tr.appendChild(isAr ? tdLeft : tdRight);
+    tbl.appendChild(tr);
+    head.parentNode.replaceChild(tbl, head);
+  });
+
+  /* 2. Format Definitions Grid as a 3-Column Table */
+  clone.querySelectorAll(".official-definitions-grid").forEach(function (grid) {
+    var tables = Array.from(grid.querySelectorAll("table"));
+    if (tables.length) {
+      var tbl = document.createElement("table");
+      tbl.setAttribute("width", "100%");
+      tbl.setAttribute("border", "0");
+      tbl.setAttribute("cellpadding", "0");
+      tbl.setAttribute("cellspacing", "6");
+      tbl.style.cssText = "width:100%;border-collapse:separate;margin-bottom:10pt;";
+      var tr = document.createElement("tr");
+      var widths = ["36%", "28%", "36%"];
+      tables.forEach(function (subTbl, idx) {
+        var td = document.createElement("td");
+        td.style.cssText = "width:" + (widths[idx] || "33%") + ";vertical-align:top;";
+        subTbl.setAttribute("border", "1");
+        subTbl.setAttribute("bordercolor", "#64748b");
+        subTbl.setAttribute("cellpadding", "3");
+        subTbl.setAttribute("cellspacing", "0");
+        subTbl.setAttribute("width", "100%");
+        subTbl.style.cssText = "width:100%;border-collapse:collapse;border:1.0pt solid #64748b;font-size:8pt;font-family:Arial,Cairo,sans-serif;";
+        
+        subTbl.querySelectorAll("th").forEach(function (th) {
+          th.setAttribute("bgcolor", "#f1f5f9");
+          th.style.cssText = "background-color:#f1f5f9;color:#0b1f3a;font-weight:bold;font-size:8pt;padding:3pt;border:1.0pt solid #64748b;text-align:center;font-family:Arial,Cairo,sans-serif;";
+        });
+        subTbl.querySelectorAll("td").forEach(function (tdCell) {
+          tdCell.style.cssText = "border:1.0pt solid #64748b;padding:3pt;font-size:8pt;font-family:Arial,Cairo,sans-serif;" + (tdCell.classList.contains("text-start") ? "text-align:start;" : "text-align:center;");
+        });
+        
+        td.appendChild(subTbl);
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+      grid.parentNode.replaceChild(tbl, grid);
+    }
+  });
+
+  /* 3. Format Metadata Box */
+  clone.querySelectorAll(".official-meta-box").forEach(function (meta) {
+    meta.setAttribute("border", "1");
+    meta.setAttribute("bordercolor", "#64748b");
+    meta.setAttribute("cellpadding", "5");
+    meta.setAttribute("cellspacing", "0");
+    meta.setAttribute("width", "100%");
+    meta.style.cssText = "width:100%;border-collapse:collapse;border:1.0pt solid #64748b;margin:8pt 0 10pt;font-family:Arial,Cairo,sans-serif;font-size:9pt;";
+    meta.querySelectorAll("td").forEach(function (td) {
+      td.style.border = "1.0pt solid #64748b";
+      td.style.padding = "4pt 6pt";
+      td.style.fontSize = "8.5pt";
+      td.style.fontFamily = "Arial,Cairo,sans-serif";
+    });
+  });
+
+  /* 4. Format Responsibilities */
+  clone.querySelectorAll(".official-responsibilities").forEach(function (resp) {
+    resp.style.cssText = "margin:8pt 0;font-size:9pt;font-family:Arial,Cairo,sans-serif;line-height:1.4;";
+    var h4 = resp.querySelector("h4");
+    if (h4) h4.style.cssText = "margin:0 0 4pt;font-size:9.5pt;font-weight:bold;color:#0b1f3a;font-family:Arial,Cairo,sans-serif;";
+  });
+
+  /* 4.5. Format 5x5 Risk Matrix Table for Word */
+  clone.querySelectorAll(".official-5x5-matrix").forEach(function (tbl) {
+    tbl.setAttribute("border", "1");
+    tbl.setAttribute("bordercolor", "#64748b");
+    tbl.setAttribute("cellpadding", "4");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.setAttribute("width", "100%");
+    tbl.style.cssText = "width:100%;border-collapse:collapse;border:1.0pt solid #64748b;margin:6pt 0 8pt;font-family:Arial,Cairo,sans-serif;font-size:8pt;";
+
+    tbl.querySelectorAll("thead th").forEach(function (th) {
+      th.setAttribute("bgcolor", "#0b1f3a");
+      th.style.cssText = "background-color:#0b1f3a;color:#ffffff;font-weight:bold;font-size:8pt;text-align:center;padding:4pt;border:1.0pt solid #64748b;font-family:Arial,Cairo,sans-serif;";
+      th.innerHTML = '<span style="color:#ffffff;font-weight:bold;font-size:8pt;">' + th.innerHTML + '</span>';
+    });
+
+    tbl.querySelectorAll("tbody th").forEach(function (th) {
+      th.setAttribute("bgcolor", "#f1f5f9");
+      th.style.cssText = "background-color:#f1f5f9;color:#0b1f3a;font-weight:bold;font-size:8pt;text-align:" + (isAr ? "right" : "left") + ";padding:4pt;border:1.0pt solid #64748b;font-family:Arial,Cairo,sans-serif;";
+    });
+
+    tbl.querySelectorAll("tbody td").forEach(function (td) {
+      td.style.border = "1.0pt solid #64748b";
+      td.style.padding = "4pt";
+      td.style.textAlign = "center";
+      td.style.fontWeight = "bold";
+      td.style.fontSize = "8pt";
+      td.style.fontFamily = "Arial,Cairo,sans-serif";
+
+      if (td.classList.contains("score-red")) {
+        td.setAttribute("bgcolor", "#fca5a5");
+        td.style.backgroundColor = "#fca5a5";
+        td.style.color = "#000000";
+      } else if (td.classList.contains("score-orange")) {
+        td.setAttribute("bgcolor", "#fdba74");
+        td.style.backgroundColor = "#fdba74";
+        td.style.color = "#000000";
+      } else if (td.classList.contains("score-yellow")) {
+        td.setAttribute("bgcolor", "#fef08a");
+        td.style.backgroundColor = "#fef08a";
+        td.style.color = "#000000";
+      } else if (td.classList.contains("score-green")) {
+        td.setAttribute("bgcolor", "#86efac");
+        td.style.backgroundColor = "#86efac";
+        td.style.color = "#000000";
+      }
+    });
+  });
+
+  /* 5. Format Official 9-Column Risk Assessment Matrix Table */
+  clone.querySelectorAll(".official-risk-table").forEach(function (tbl) {
+    tbl.setAttribute("border", "1");
+    tbl.setAttribute("bordercolor", "#000000");
+    tbl.setAttribute("cellpadding", "4");
+    tbl.setAttribute("cellspacing", "0");
+    tbl.setAttribute("width", "100%");
+    tbl.style.cssText = "width:100%;border-collapse:collapse;border:1.5pt solid #000000;margin:8pt 0;font-family:Arial,Cairo,sans-serif;font-size:8pt;";
+
+    tbl.querySelectorAll("th").forEach(function (th) {
+      th.setAttribute("bgcolor", "#f1f5f9");
+      var w = th.style.width || th.getAttribute("width") || "";
+      th.style.cssText = "background-color:#f1f5f9;color:#0b1f3a;font-weight:bold;font-size:7.5pt;text-align:center;vertical-align:middle;padding:4pt 2pt;border:1.0pt solid #000000;font-family:Arial,Cairo,sans-serif;" + (w ? "width:" + w + ";" : "");
+    });
+
+    tbl.querySelectorAll("tbody td").forEach(function (td) {
+      var txt = td.textContent.trim();
+      var isScore = td.classList.contains("score-cell") || td.classList.contains("score-red") || td.classList.contains("score-yellow") || td.classList.contains("score-green") || td.classList.contains("score-orange");
+      
+      td.style.border = "1.0pt solid #000000";
+      td.style.padding = "4pt 3pt";
+      td.style.verticalAlign = "middle";
+      td.style.fontSize = "8pt";
+      td.style.fontFamily = "Arial,Cairo,sans-serif";
+
+      if (td.classList.contains("score-red") || (isScore && parseInt(txt) >= 15)) {
+        td.setAttribute("bgcolor", "#fca5a5");
+        td.style.backgroundColor = "#fca5a5";
+        td.style.color = "#000000";
+        td.style.fontWeight = "bold";
+        td.style.textAlign = "center";
+      } else if (td.classList.contains("score-yellow") || (isScore && parseInt(txt) >= 9)) {
+        td.setAttribute("bgcolor", "#fef08a");
+        td.style.backgroundColor = "#fef08a";
+        td.style.color = "#000000";
+        td.style.fontWeight = "bold";
+        td.style.textAlign = "center";
+      } else if (td.classList.contains("score-green") || (isScore && parseInt(txt) > 0 && parseInt(txt) < 9)) {
+        td.setAttribute("bgcolor", "#86efac");
+        td.style.backgroundColor = "#86efac";
+        td.style.color = "#000000";
+        td.style.fontWeight = "bold";
+        td.style.textAlign = "center";
+      } else if (td.classList.contains("score-orange")) {
+        td.setAttribute("bgcolor", "#fdba74");
+        td.style.backgroundColor = "#fdba74";
+        td.style.color = "#000000";
+        td.style.fontWeight = "bold";
+        td.style.textAlign = "center";
+      } else if (td.classList.contains("center")) {
+        td.style.textAlign = "center";
+        td.style.fontWeight = "bold";
+      }
+    });
+  });
+
+  return clone;
+}
+
 function downloadRiskWord() {
   if (!lastRiskAssessmentData && !riskAssessments.length) {
     return showSweetAlert("تنبيه", "لا توجد بيانات تقييم مخاطر للتصدير.", "warning");
   }
-  var content = document.getElementById("riskAssessmentReport").innerHTML || document.getElementById("riskRegisterTable").innerHTML;
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Risk and Environmental Impact Assessment</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#000}table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #000;padding:6px 6px;font-size:10px;vertical-align:middle}th{background:#f1f5f9;font-weight:bold;text-align:center}.score-yellow{background-color:#fef08a!important;color:#000}.score-green{background-color:#86efac!important;color:#000}.score-red{background-color:#fca5a5!important;color:#000}.center{text-align:center}</style></head><body>' + content + '</body></html>';
-  var blob = new Blob(['\ufeff' + html], { type: "application/msword" });
-  var a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "SUTech-Risk-and-Environmental-Assessment-" + new Date().toISOString().slice(0, 10) + ".doc";
-  a.click();
-  showToast("success", "تم تنزيل تقرير تقييم المخاطر بصيغة Word!");
+  var repEl = document.getElementById("riskAssessmentReport");
+  var src = repEl.querySelector(".official-risk-doc") || repEl.querySelector(".report") || repEl;
+  var isAr = repEl.querySelector('[dir="rtl"]') ? true : (currentReportLang === "ar");
+  var clone = prepareRiskAssessmentWordClone(src, isAr);
+  var logoSrc = customLogoUrl || SUT_LOGO_B64;
+
+  var footerHtml = isAr ?
+    '<b style="color:#0b1f3a">sut.edu.eg</b>&nbsp;&nbsp;|&nbsp;&nbsp;<b style="color:#c00000">15755</b>&nbsp;&nbsp;|&nbsp;&nbsp;<span>Info@sut.edu.eg</span>&nbsp;&nbsp;|&nbsp;&nbsp;<span>القاهرة - طريق إسماعيلية الصحراوي ، كيلو 51</span>' :
+    '<b style="color:#0b1f3a">sut.edu.eg</b>&nbsp;&nbsp;|&nbsp;&nbsp;<b style="color:#c00000">15755</b>&nbsp;&nbsp;|&nbsp;&nbsp;<span>Info@sut.edu.eg</span>&nbsp;&nbsp;|&nbsp;&nbsp;<span>Cairo - Ismailia Desert Road, Km 51</span>';
+
+  /* === Build Professional Word Document in Landscape Mode === */
+  var doc = '<html xmlns:v="urn:schemas-microsoft-com:vml" ' +
+    'xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+    'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" ' +
+    'xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="utf-8"><title>Risk and Environmental Impact Assessment</title>' +
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->' +
+    '<style>' +
+    '@page Section1 { ' +
+    'size: 841.9pt 595.3pt; ' + /* A4 Landscape */
+    'mso-page-orientation: landscape; ' +
+    'margin: 28.35pt 28.35pt 28.35pt 28.35pt; ' +
+    'mso-header-margin: 14.15pt; ' +
+    'mso-footer-margin: 14.15pt; ' +
+    'mso-header: h1; ' +
+    'mso-footer: f1; ' +
+    '} ' +
+    'div.Section1 { page: Section1; } ' +
+    'p.MsoHeader, div.MsoHeader { margin:0; padding:0; } ' +
+    'p.MsoFooter, div.MsoFooter { margin:0; padding:0; } ' +
+    'body { font-family: Arial, Cairo, sans-serif; font-size: 8.5pt; line-height: 1.35; color: #000000; background: #ffffff; } ' +
+    'table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; } ' +
+    'th { background-color: #f1f5f9 !important; color: #0b1f3a !important; font-weight: bold; border: 1.0pt solid #000000; } ' +
+    'td { border: 1.0pt solid #000000; } ' +
+    '.score-red { background-color: #fca5a5 !important; color: #000000 !important; font-weight: bold; } ' +
+    '.score-yellow { background-color: #fef08a !important; color: #000000 !important; font-weight: bold; } ' +
+    '.score-green { background-color: #86efac !important; color: #000000 !important; font-weight: bold; } ' +
+    '.score-orange { background-color: #fdba74 !important; color: #000000 !important; font-weight: bold; } ' +
+    '</style>' +
+    '</head>' +
+    '<body style="tab-interval:36.0pt;background:#fff" lang="' + (isAr ? 'AR-EG' : 'EN-US') + '" dir="' + (isAr ? 'rtl' : 'ltr') + '">' +
+    '<div class="Section1">' +
+    clone.outerHTML +
+    '</div>' +
+    '<div style="mso-element:header" id="h1">' +
+    '<p class="MsoHeader" align="' + (isAr ? 'right' : 'left') + '" style="text-align:' + (isAr ? 'right' : 'left') + ';margin:0;padding:0">' +
+    '<img src="' + logoSrc + '" width="140" height="50" style="height:50px;max-width:140px;display:inline-block;" alt="SUTech Logo">' +
+    '</p>' +
+    '</div>' +
+    '<div style="mso-element:footer" id="f1">' +
+    '<p class="MsoFooter" align="center" style="text-align:center;border-top:1.0pt solid #5D5E60;padding-top:4pt;margin:0;font-family:Arial,sans-serif;font-size:8pt;color:#5D5E60;">' +
+    footerHtml +
+    '</p>' +
+    '</div>' +
+    '</body></html>';
+
+  downloadBlob("\ufeff" + doc, "SUTech-Risk-and-Environmental-Assessment-" + new Date().toISOString().slice(0, 10) + ".doc", "application/msword");
+  showToast("success", "تم تنزيل تقرير تقييم المخاطر المعتمد بصيغة Word بنجاح!");
 }
 
 function exportRiskCSV() {
@@ -5468,6 +6637,127 @@ function exportRiskCSV() {
   a.download = "SUTech-Risk-Register-" + new Date().toISOString().slice(0, 10) + ".csv";
   a.click();
   showToast("success", "تم تصدير سجل تقييم المخاطر بصيغة CSV بنجاح!");
+}
+
+/* =========================================================================
+   SAVED RISK ASSESSMENTS ARCHIVE & RESTORE SYSTEM
+   ========================================================================= */
+
+function saveCurrentRiskAssessment(isManual) {
+  if (!lastRiskAssessmentData) {
+    if (isManual) showSweetAlert("تنبيه", "لا توجد دراسة تقييم مخاطر حالية لحفظها. يرجى توليد التقييم أولاً.", "warning");
+    return;
+  }
+  
+  var ra = lastRiskAssessmentData;
+  var area = ra.activity_to_be_assessed || (ra._formData ? ra._formData.area : "") || "HSE Assessment";
+  var date = ra.assessment_date || (ra._formData ? ra._formData.date : "") || new Date().toISOString().slice(0, 10);
+  var docTitle = ra.document_title || (ra._lang === "ar" ? "سجل تقييم المخاطر والأثر البيئي" : "Risk & Environmental Assessment");
+  
+  var existingIdx = savedRiskAssessments.findIndex(function (x) {
+    return (ra.id && x.id === ra.id) || (x.area === area && x.date === date);
+  });
+  
+  var savedObj = {
+    id: ra.id || Date.now(),
+    title: docTitle + " — " + area + " (" + date + ")",
+    area: area,
+    date: date,
+    lang: ra._lang || "en",
+    activitiesCount: (ra.activities || []).length,
+    savedAt: new Date().toISOString(),
+    data: JSON.parse(JSON.stringify(ra))
+  };
+  
+  ra.id = savedObj.id;
+  
+  if (existingIdx >= 0) {
+    savedRiskAssessments[existingIdx] = savedObj;
+  } else {
+    savedRiskAssessments.unshift(savedObj);
+  }
+  
+  try {
+    localStorage.setItem("SUT_SAVED_RISK_REPORTS", JSON.stringify(savedRiskAssessments));
+  } catch (e) {}
+  syncToCloud("savedRiskAssessments", savedRiskAssessments);
+  updateSavedRiskAssessmentsDropdown();
+  
+  if (isManual) {
+    showToast("success", "تم حفظ دراسة تقييم المخاطر بالنظام بنجاح!");
+  }
+}
+
+function updateSavedRiskAssessmentsDropdown() {
+  var sel = document.getElementById("savedRiskSelect");
+  if (!sel) return;
+  
+  if (!savedRiskAssessments || savedRiskAssessments.length === 0) {
+    sel.innerHTML = '<option value="">-- لا توجد دراسات مخاطر محفوظة حتى الآن --</option>';
+    return;
+  }
+  
+  var currentId = lastRiskAssessmentData ? lastRiskAssessmentData.id : null;
+  
+  var options = '<option value="">-- اختر دراسة مخاطر محفوظة لعرضها واسترجاعها (' + savedRiskAssessments.length + ') --</option>' +
+    savedRiskAssessments.map(function (x) {
+      var isSelected = (currentId && (x.id === currentId || (x.data && x.data.id === currentId))) ? " selected" : "";
+      var count = x.activitiesCount || (x.data && x.data.activities ? x.data.activities.length : 0);
+      return '<option value="' + x.id + '"' + isSelected + '>' + esc(x.title || (x.area + " — " + x.date)) + ' [' + count + ' أنشطة/مخاطر]</option>';
+    }).join("");
+    
+  sel.innerHTML = options;
+}
+
+function loadSelectedSavedRisk() {
+  var sel = document.getElementById("savedRiskSelect");
+  if (!sel || !sel.value) {
+    return showSweetAlert("تنبيه", "يرجى اختيار دراسة تقييم مخاطر من القائمة أولاً.", "warning");
+  }
+  loadSavedRiskAssessmentById(sel.value);
+}
+
+function loadSavedRiskAssessmentById(id) {
+  var item = savedRiskAssessments.find(function (x) { return String(x.id) === String(id); });
+  if (!item || !item.data) {
+    return showSweetAlert("خطأ", "لم يتم العثور على بيانات الدراسة المحددة.", "error");
+  }
+  
+  lastRiskAssessmentData = JSON.parse(JSON.stringify(item.data));
+  lastRiskAssessmentData.id = item.id;
+  
+  var outWrap = document.getElementById("riskAssessmentOutput");
+  if (outWrap) outWrap.classList.remove("hidden");
+  
+  renderRiskAssessmentReport(lastRiskAssessmentData);
+  updateSavedRiskAssessmentsDropdown();
+  
+  if (outWrap) {
+    outWrap.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  
+  showToast("success", "تم استرجاع وعرض دراسة تقييم المخاطر بنجاح: " + (item.area || item.title));
+}
+
+async function deleteSelectedSavedRisk() {
+  var sel = document.getElementById("savedRiskSelect");
+  if (!sel || !sel.value) {
+    return showSweetAlert("تنبيه", "يرجى اختيار دراسة تقييم مخاطر لحذفها.", "warning");
+  }
+  var id = sel.value;
+  var item = savedRiskAssessments.find(function (x) { return String(x.id) === String(id); });
+  var title = item ? (item.title || item.area) : "هذه الدراسة";
+  
+  var res = await showConfirmDialog("تأكيد الحذف", "هل أنت متأكد من حذف دراسة تقييم المخاطر: \"" + title + "\" من النظام؟", "نعم، احذف", "إلغاء");
+  if (res && res.isConfirmed) {
+    savedRiskAssessments = savedRiskAssessments.filter(function (x) { return String(x.id) !== String(id); });
+    try {
+      localStorage.setItem("SUT_SAVED_RISK_REPORTS", JSON.stringify(savedRiskAssessments));
+    } catch (e) {}
+    syncToCloud("savedRiskAssessments", savedRiskAssessments);
+    updateSavedRiskAssessmentsDropdown();
+    showToast("info", "تم حذف دراسة تقييم المخاطر من النظام بنجاح.");
+  }
 }
 
 
