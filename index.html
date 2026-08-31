@@ -74,7 +74,8 @@
   <button data-tab="fleet_food"><i class="fa-solid fa-bus"></i> Fleet & Food Audits</button>
   <button data-tab="mom"><i class="fa-solid fa-file-lines"></i> Committee MoM</button>
   <button data-tab="codes"><i class="fa-solid fa-scale-balanced"></i> Codes & Legal</button>
-  <button data-tab="inspection"><i class="fa-solid fa-clipboard-check"></i> Inspection & Audits</button>
+  <button data-tab="inspection"><i class="fa-solid fa-clipboard-list"></i> Inspection & Checklist</button>
+  <button data-tab="insp_mgmt"><i class="fa-solid fa-clipboard-check"></i> Inspection Management</button>
   <button data-tab="ncr"><i class="fa-solid fa-file-circle-exclamation"></i> NCR & CAPA</button>
   <button data-tab="hse_cases"><i class="fa-solid fa-folder-open"></i> HSE General Cases</button>
   <button data-tab="ptw"><i class="fa-solid fa-id-card-clip"></i> PTW & TBT</button>
@@ -323,6 +324,23 @@
     </div>
     <div class="output-body" id="momReportContainer"></div>
   </div>
+
+  <!-- Committee MoM Historical Records Archive -->
+  <div class="module-history-card">
+    <div class="module-history-header">
+      <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--purple)"></i> <span>سجل وأرشيف محاضر اجتماعات لجنة السلامة (Committee MoM History)</span> <span class="history-count-badge" id="momHistoryCount">0</span></h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-light" id="saveCurrentMomBtn" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-floppy-disk" style="color:#059669"></i> حفظ المحضر بالسجل</button>
+        <button class="btn btn-purple" id="newMomBtn" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-plus"></i> محضر جديد</button>
+      </div>
+    </div>
+    <div class="history-filter-bar">
+      <input type="text" id="searchMomHistory" placeholder="🔍 بحث في مواضيع وتواريخ المحاضر السابقة..." style="flex:1;min-width:200px">
+    </div>
+    <div class="history-table-wrap">
+      <div id="momHistoryTableContainer"></div>
+    </div>
+  </div>
 </section>
 
 <!-- CODES -->
@@ -350,33 +368,358 @@
   </div>
 </section>
 
-<!-- INSPECTION -->
+<!-- INSPECTION & AUDITS MANAGEMENT SYSTEM -->
 <section id="inspection" class="panel">
   <div class="hero">
-    <h2>Smart Inspection / Checklist Builder</h2>
-    <p>توليد نماذج وقوائم فحص ميدانية مخصصة للمختبرات، أسطول الباصات، والمطاعم والورش مع معايير قبول واضحة.</p>
+    <h2>Smart Inspection &amp; Field Audit Management System</h2>
+    <p>منظومة إدارة وتنفيذ الفحوصات الميدانية التفاعلية للمختبرات، الأسطول، والمطاعم والمنشآت مع التقييم اللحظي لنسبة الامتثال والتحويل الفوري لمخالفات NCR.</p>
   </div>
+
+  <!-- Presets Selection Cards -->
   <div class="card">
-    <div class="chips">
-      <b style="font-size:12px;align-self:center;margin-left:5px">نماذج جاهزة:</b>
-      <span class="chip" onclick="setInspectionTemplate('bus')">🚌 فحص شهري لحافلات وسيارات الجامعة</span>
-      <span class="chip" onclick="setInspectionTemplate('food')">🍽️ تفتيش شهري على مطاعم وكافيتريات الجامعة</span>
-      <span class="chip" onclick="setInspectionTemplate('lab')">🧪 فحص السلامة بمختبرات الكيمياء والطاقة</span>
-      <span class="chip" onclick="setInspectionTemplate('crane')">🏗️ فحص الأوناش والمعدات الهندسية (FabLab)</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h3 style="margin:0;font-size:13.5px;color:var(--sut-navy)"><i class="fa-solid fa-layer-group" style="color:var(--blue)"></i> نماذج وقوائم الفحص المعتمدة بجامعة السويدي (Standard SUTech Audit Presets)</h3>
+      <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:11px">7 نماذج معتمدة</span>
     </div>
-    <div class="row">
-      <div class="field"><label>نوع / موضوع الفحص</label><input id="inspectionQuery" placeholder="مثال: فحص شهري لباصات الجامعة"></div>
-      <div class="field"><label>المكان</label><input id="inspectionArea" placeholder="مثال: Parking / Cafeteria / Energy Lab"></div>
+    <div class="preset-card-grid">
+      <div class="preset-card-btn" onclick="setInspectionTemplate('bus')">
+        <div class="preset-card-icon"><i class="fa-solid fa-bus"></i></div>
+        <div class="preset-card-text">
+          <b>حافلات وسيارات الجامعة</b>
+          <small>Campus Transport Fleet (12 بند)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('food')">
+        <div class="preset-card-icon"><i class="fa-solid fa-utensils"></i></div>
+        <div class="preset-card-text">
+          <b>مطاعم وكافيتريات الجامعة</b>
+          <small>Food Hygiene & Kitchen (12 بند)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('fablab')">
+        <div class="preset-card-icon"><i class="fa-solid fa-gears"></i></div>
+        <div class="preset-card-text">
+          <b>مختبر التصنيع والورش</b>
+          <small>FabLab Machinery & Digital (12 بند)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('lab')">
+        <div class="preset-card-icon"><i class="fa-solid fa-flask-vial"></i></div>
+        <div class="preset-card-text">
+          <b>معامل الكيمياء والمواد الخطرة</b>
+          <small>Chemical & Energy Labs (10 بنود)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('electrical')">
+        <div class="preset-card-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div class="preset-card-text">
+          <b>محطات ولوحات الكهرباء</b>
+          <small>Substations & Switchgear (10 بنود)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('fire')">
+        <div class="preset-card-icon"><i class="fa-solid fa-fire-extinguisher"></i></div>
+        <div class="preset-card-text">
+          <b>شبكات الإنذار ومخارج الطوارئ</b>
+          <small>Fire Fighting & Egress (10 بنود)</small>
+        </div>
+      </div>
+      <div class="preset-card-btn" onclick="setInspectionTemplate('civil')">
+        <div class="preset-card-icon"><i class="fa-solid fa-building-shield"></i></div>
+        <div class="preset-card-text">
+          <b>السلامة العامة والمباني الأكاديمية</b>
+          <small>Campus Facilities & Civil (10 بنود)</small>
+        </div>
+      </div>
     </div>
-    <div class="row">
-      <div class="field"><label>لغة التقرير</label><select id="inspectionLang"><option value="ar">العربية</option><option value="en">English</option></select></div>
-      <div class="field"><label>نوع المرجعية</label><select id="inspectionRefs"><option>Egyptian laws + codes + relevant international standards</option><option>Egyptian requirements only</option><option>International standards only</option></select></div>
+
+    <!-- Inspection Form Setup -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px dashed #cbd5e1">
+      <div class="row row3">
+        <div class="field"><label>رقم الفحص (Inspection No.)</label><input id="inspectionNo" value="SUT-INS-2026-001" style="font-weight:bold;color:var(--sut-navy)"></div>
+        <div class="field"><label>تاريخ الفحص الميداني</label><input id="inspectionDate" type="date"></div>
+        <div class="field"><label>لغة التقرير</label><select id="inspectionLang"><option value="ar">العربية (Arabic)</option><option value="en">English (Official)</option></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>موضوع / مجال الفحص (Inspection Scope &amp; Title)</label><input id="inspectionQuery" placeholder="مثال: فحص وتفتيش السلامة الشامل لحافلات وسيارات الجامعة"></div>
+        <div class="field"><label>الموقع / المنشأة (Location / Facility)</label><input id="inspectionArea" placeholder="مثال: University Parking & Fleet Maintenance Depot"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>المفتش المسؤول (Lead HSE Inspector)</label><input id="inspectionInspector" value="م. إبراهيم سعيد (HSE Department)"></div>
+        <div class="field"><label>المرجعية القياسية (Reference Standard)</label><select id="inspectionRefs"><option>Egyptian Labor Law 12/2003 + Civil Defense &amp; OSHA/NFPA Codes</option><option>Egyptian Statutory Requirements Only</option><option>OSHA &amp; International Standards</option></select></div>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn btn-green" id="runInspectionBtn" style="font-size:13px;padding:9px 18px"><i class="fa-solid fa-bolt"></i> بدء وتفعيل الفحص الميداني (Launch Interactive Audit)</button>
+        <button class="btn btn-blue" id="addCustomInspItemBtn" style="font-size:12px"><i class="fa-solid fa-plus"></i> إضافة بند فحص يدوي</button>
+        <button class="btn btn-purple" id="generateAiInspBtn" style="font-size:12px"><i class="fa-solid fa-wand-magic-sparkles"></i> توليد بالذكاء الاصطناعي</button>
+      </div>
     </div>
-    <button class="btn btn-green" id="runInspectionBtn"><i class="fa-solid fa-clipboard-check"></i> Generate Inspection Sheet</button>
   </div>
+
+  <!-- Interactive Live Audit Sheet Workspace -->
   <div id="inspectionOutput" class="output hidden">
-    <div class="output-head"><b>Inspection Sheet</b><div class="actions no-print"><button class="btn btn-dark" id="inspWordBtn">Word</button><button class="btn btn-red" id="inspPdfBtn">PDF</button><button class="btn btn-blue" id="inspPrintBtn"><i class="fa-solid fa-print"></i> Print</button></div></div>
+    <div class="output-head">
+      <b><i class="fa-solid fa-clipboard-check"></i> نموذج وقائمة الفحص الميداني (Generated Inspection Checklist)</b>
+      <div class="actions no-print">
+        <button class="btn btn-purple" id="useInInspMgmtBtn" title="بدء فحص ميداني رقمي باستخدام هذه القائمة"><i class="fa-solid fa-rocket"></i> Use in Inspection Management</button>
+        <button class="btn btn-light" id="saveInspectionWorkspaceBtn" title="حفظ الفحص الحالي بالسجل التاريخي"><i class="fa-solid fa-floppy-disk" style="color:#059669"></i> حفظ الفحص</button>
+        <button class="btn btn-green" id="inspPassAllBtn" title="تعليم كافة البنود كمطابقة"><i class="fa-solid fa-check-double"></i> مطابقة الكل (Pass All)</button>
+        <button class="btn btn-blue" id="inspAddItemBtn" title="إضافة بند فحص جديد"><i class="fa-solid fa-plus"></i> إضافة بند</button>
+        <button class="btn btn-dark" id="inspWordBtn"><i class="fa-solid fa-file-word"></i> Word</button>
+        <button class="btn btn-red" id="inspPdfBtn"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+        <button class="btn btn-blue" id="inspPrintBtn"><i class="fa-solid fa-print"></i> Print</button>
+        <button class="btn btn-green" id="inspExcelBtn"><i class="fa-solid fa-file-excel"></i> Excel</button>
+      </div>
+    </div>
     <div class="output-body" id="inspectionReport"></div>
+  </div>
+
+  <!-- Inspection Checklists & Completed Audits Historical Archive -->
+  <div class="module-history-card">
+    <div class="module-history-header">
+      <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i> <span>سجل وأرشيف نماذج وقوائم الفحص المعتمدة (Inspection &amp; Audit History)</span> <span class="history-count-badge" id="inspHistoryCount">0</span></h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-light" id="saveCurrentInspBtn" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-floppy-disk" style="color:#059669"></i> حفظ الفحص الحالي بالسجل</button>
+        <button class="btn btn-green" id="newInspBtn" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-plus"></i> فحص جديد</button>
+      </div>
+    </div>
+    <div class="history-filter-bar">
+      <input type="text" id="searchInspHistory" placeholder="🔍 بحث في سجل الفحوصات والمباني..." style="flex:1;min-width:180px">
+      <select id="filterInspArea" style="min-width:140px">
+        <option value="">جميع المواقع والأقسام</option>
+      </select>
+      <select id="filterInspStatus" style="min-width:110px">
+        <option value="">جميع الحالات</option>
+        <option value="Completed">Completed (مكتمل)</option>
+        <option value="Action Required">Action Required (مطلوب إجراء)</option>
+        <option value="Draft">Draft / Blank (مسودة)</option>
+      </select>
+    </div>
+    <div class="history-table-wrap">
+      <div id="inspectionHistoryTableContainer"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     INSPECTION MANAGEMENT SYSTEM (DIGITAL FIELD AUDITS & FINDINGS TRACKING)
+     ========================================================================= -->
+<section id="insp_mgmt" class="panel">
+  <!-- Hero Banner -->
+  <div class="insp-mgmt-hero">
+    <div>
+      <h2><i class="fa-solid fa-clipboard-check" style="color:#38bdf8"></i> Enterprise Inspection Management System</h2>
+      <p>منظومة تنفيذ وإدارة الفحوصات الميدانية الرقمية، توثيق المخالفات والأدلة، متابعة وتسكين الإجراءات التصحيحية، والتقارير الشهرية المجمعة.</p>
+    </div>
+    <div class="insp-mgmt-hero-actions no-print">
+      <button class="btn btn-green" id="openNewInspModalBtn" style="font-size:13px;padding:9px 18px;font-weight:700">
+        <i class="fa-solid fa-plus"></i> + NEW INSPECTION
+      </button>
+      <button class="btn btn-light" id="openTemplateManagerBtn" style="font-size:12px;padding:9px 14px">
+        <i class="fa-solid fa-sliders"></i> Template Manager
+      </button>
+      <button class="btn btn-purple" id="exportMonthlyPackageBtn" style="font-size:12px;padding:9px 14px">
+        <i class="fa-solid fa-boxes-packing"></i> Monthly Package PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Inspection KPI Dashboard Grid -->
+  <div class="insp-kpi-grid">
+    <div class="insp-kpi-card kpi-total">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Total Inspections</span>
+        <i class="fa-solid fa-list-check insp-kpi-icon" style="color:#0284c7"></i>
+      </div>
+      <div class="insp-kpi-value" id="statTotalInsp">0</div>
+      <div class="insp-kpi-sub">All Digital Records</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-completed">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Completed</span>
+        <i class="fa-solid fa-circle-check insp-kpi-icon" style="color:#10b981"></i>
+      </div>
+      <div class="insp-kpi-value" id="statCompletedInsp">0</div>
+      <div class="insp-kpi-sub">Audits Finalized</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-open">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Open Findings</span>
+        <i class="fa-solid fa-circle-exclamation insp-kpi-icon" style="color:#ef4444"></i>
+      </div>
+      <div class="insp-kpi-value" id="statOpenFindings">0</div>
+      <div class="insp-kpi-sub">Awaiting Action</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-inprogress">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">In Progress</span>
+        <i class="fa-solid fa-spinner insp-kpi-icon" style="color:#f59e0b"></i>
+      </div>
+      <div class="insp-kpi-value" id="statInProgressFindings">0</div>
+      <div class="insp-kpi-sub">CAPA Underway</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-ready">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Ready Verify</span>
+        <i class="fa-solid fa-user-check insp-kpi-icon" style="color:#8b5cf6"></i>
+      </div>
+      <div class="insp-kpi-value" id="statReadyVerifyFindings">0</div>
+      <div class="insp-kpi-sub">HSE Review Needed</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-overdue">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Overdue</span>
+        <i class="fa-solid fa-triangle-exclamation insp-kpi-icon" style="color:#dc2626"></i>
+      </div>
+      <div class="insp-kpi-value" id="statOverdueFindings">0</div>
+      <div class="insp-kpi-sub" style="color:#dc2626;font-weight:700">Action Required</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-closed">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Closed</span>
+        <i class="fa-solid fa-shield-check insp-kpi-icon" style="color:#059669"></i>
+      </div>
+      <div class="insp-kpi-value" id="statClosedFindings">0</div>
+      <div class="insp-kpi-sub">Verified &amp; Resolved</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-critical">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Critical / High</span>
+        <i class="fa-solid fa-fire insp-kpi-icon" style="color:#991b1b"></i>
+      </div>
+      <div class="insp-kpi-value" id="statCriticalHighFindings">0</div>
+      <div class="insp-kpi-sub">High Priority</div>
+    </div>
+
+    <div class="insp-kpi-card kpi-rate">
+      <div class="insp-kpi-header">
+        <span class="insp-kpi-label">Closure Rate</span>
+        <i class="fa-solid fa-percent insp-kpi-icon" style="color:#3b82f6"></i>
+      </div>
+      <div class="insp-kpi-value" id="statClosureRate">100%</div>
+      <div class="insp-kpi-sub">CAPA Resolution</div>
+    </div>
+  </div>
+
+  <!-- Active Inspection Digital Worksheet Card (Shown during new inspection or edit) -->
+  <div id="activeInspWorksheetCard" class="insp-worksheet-card hidden">
+    <div class="insp-worksheet-header">
+      <div>
+        <span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:700" id="wsInspIdBadge">INS-2026-0001</span>
+        <h3 style="margin:4px 0 0 0;font-size:15px;color:#0b1f3a" id="wsInspTitleDisplay">Digital Inspection Worksheet</h3>
+        <small style="color:#64748b" id="wsInspMetaSummary">Campus: Main Campus | Inspector: SUTech HSE | Date: 2026-08-31</small>
+      </div>
+      <div class="actions no-print">
+        <button class="btn btn-green" id="wsCompleteInspBtn" style="font-size:12px;padding:8px 16px"><i class="fa-solid fa-circle-check"></i> COMPLETE INSPECTION</button>
+        <button class="btn btn-light" id="wsSaveDraftBtn" style="font-size:12px"><i class="fa-solid fa-floppy-disk"></i> Save Draft</button>
+        <button class="btn btn-dark" id="wsViewReportBtn" style="font-size:12px"><i class="fa-solid fa-file-lines"></i> View Report</button>
+        <button class="btn btn-red" id="wsCloseBtn" style="font-size:12px"><i class="fa-solid fa-xmark"></i> Close</button>
+      </div>
+    </div>
+
+    <div class="insp-worksheet-body">
+      <!-- Live Compliance Banner inside worksheet -->
+      <div class="insp-score-banner" style="margin-bottom:16px">
+        <div class="insp-score-circle" id="wsScoreCircle" style="border-color:#10b981">
+          <div class="insp-score-num" id="wsScorePercent">100%</div>
+          <div class="insp-score-lbl">Score</div>
+        </div>
+        <div class="insp-score-details">
+          <h3 id="wsScoreTitleText">HSE Compliance Score &amp; Summary</h3>
+          <div class="insp-stats-pills">
+            <span class="insp-stat-pill pill-total"><i class="fa-solid fa-list"></i> Total: <b id="wsStatTotalQ">0</b></span>
+            <span class="insp-stat-pill pill-pass"><i class="fa-solid fa-check"></i> Pass: <b id="wsStatPassQ">0</b></span>
+            <span class="insp-stat-pill pill-fail"><i class="fa-solid fa-xmark"></i> Fail: <b id="wsStatFailQ">0</b></span>
+            <span class="insp-stat-pill pill-na"><i class="fa-solid fa-minus"></i> N/A: <b id="wsStatNaQ">0</b></span>
+          </div>
+        </div>
+        <div>
+          <button class="btn btn-green" id="wsPassAllQuestionsBtn" style="font-size:11px"><i class="fa-solid fa-check-double"></i> Mark All as Pass / Good</button>
+        </div>
+      </div>
+
+      <!-- Container for Category Blocks & Questions -->
+      <div id="wsQuestionsContainer"></div>
+
+      <!-- Findings & Corrective Action Section for this Inspection -->
+      <div style="margin-top:20px;padding-top:16px;border-top:2px solid #e2e8f0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="margin:0;font-size:14px;color:#0b1f3a">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444"></i> Recorded Findings &amp; Corrective Actions (CAPA)
+            <span class="badge" style="background:#fee2e2;color:#b91c1c;margin-inline-start:6px" id="wsFindingsCountBadge">0 Findings</span>
+          </h3>
+          <button class="btn btn-blue" id="wsAddManualFindingBtn" style="font-size:11px"><i class="fa-solid fa-plus"></i> + Add Manual Finding</button>
+        </div>
+        <div id="wsFindingsTableContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inspection History & Batch Export Center -->
+  <div class="module-history-card">
+    <div class="module-history-header">
+      <h3>
+        <i class="fa-solid fa-clock-rotate-left" style="color:var(--blue)"></i>
+        <span>Inspection History, Multi-Period Archive &amp; Batch Reports</span>
+        <span class="history-count-badge" id="inspMgmtHistoryCount">0</span>
+      </h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-green" id="histNewInspBtn" style="font-size:11px;padding:6px 12px"><i class="fa-solid fa-plus"></i> + New Inspection</button>
+      </div>
+    </div>
+
+    <!-- Batch Selection Action Bar -->
+    <div class="insp-batch-bar" id="inspBatchActionBar">
+      <div class="insp-batch-info">
+        <input type="checkbox" id="selectAllInspCheck" style="width:16px;height:16px;cursor:pointer">
+        <label for="selectAllInspCheck" style="cursor:pointer;margin:0"><b>تحديد الكل (Select All)</b></label>
+        <span class="badge" style="background:#38bdf8;color:#0b1f3a" id="selectedInspCountBadge">0 Selected</span>
+      </div>
+      <div class="insp-batch-actions">
+        <button class="btn btn-light" id="batchExportSeparatePdfBtn" style="font-size:11px;color:#0b1f3a" title="تصدير كل فحص بملف PDF مستقل"><i class="fa-solid fa-file-pdf" style="color:#ef4444"></i> Export Separate PDFs</button>
+        <button class="btn btn-purple" id="batchExportCombinedPdfBtn" style="font-size:11px" title="تصدير كافة الفحوصات المحددة في ملف PDF مجمع واحد"><i class="fa-solid fa-file-zipper"></i> Export Combined PDF (One File)</button>
+        <button class="btn btn-green" id="batchExportExcelBtn" style="font-size:11px"><i class="fa-solid fa-file-excel"></i> Export Excel Workbook</button>
+      </div>
+    </div>
+
+    <!-- Multi-Filter & Search Bar -->
+    <div class="history-filter-bar" style="flex-wrap:wrap">
+      <input type="text" id="searchInspMgmt" placeholder="🔍 بحث برقم الفحص، النوع، الموقع، المفتش..." style="flex:1;min-width:180px">
+      <select id="filterInspMgmtMonth" style="min-width:140px">
+        <option value="">جميع الشهور / الفترات</option>
+      </select>
+      <select id="filterInspMgmtType" style="min-width:140px">
+        <option value="">جميع أنواع الفحوصات</option>
+      </select>
+      <select id="filterInspMgmtLocation" style="min-width:130px">
+        <option value="">جميع المواقع</option>
+      </select>
+      <select id="filterInspMgmtFindingStatus" style="min-width:130px">
+        <option value="">حالة الملاحظات (All)</option>
+        <option value="has_open">به ملاحظات مفتوحة</option>
+        <option value="has_overdue">به ملاحظات متأخرة (Overdue)</option>
+        <option value="all_closed">كافة الملاحظات مغلقة</option>
+        <option value="no_findings">خالٍ من الملاحظات</option>
+      </select>
+      <select id="filterInspMgmtStatus" style="min-width:110px">
+        <option value="">حالة الفحص (All)</option>
+        <option value="Completed">Completed (مكتمل)</option>
+        <option value="In Progress">In Progress (قيد التنفيذ)</option>
+        <option value="Draft">Draft (مسودة)</option>
+      </select>
+    </div>
+
+    <!-- Historical Records Table Container -->
+    <div class="history-table-wrap">
+      <div id="inspMgmtHistoryTableContainer"></div>
+    </div>
   </div>
 </section>
 
@@ -794,7 +1137,24 @@
   </div>
 
   <div class="card">
-    <h3><i class="fa-solid fa-pen-ruler"></i> مدخلات تقييم المخاطر والأثر البيئي الميداني (Risk &amp; Environmental Impact Inputs)</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <h3 style="margin:0"><i class="fa-solid fa-pen-ruler"></i> مدخلات تقييم المخاطر والأثر البيئي الميداني (Risk &amp; Environmental Impact Inputs)</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:#64748b"><i class="fa-solid fa-wand-magic-sparkles"></i> نماذج جاهزة:</span>
+        <button type="button" class="btn btn-light risk-preset-btn" data-preset="fablab" style="padding:4px 9px;font-size:10.5px;border:1px solid #bae6fd;background:#f0f9ff;color:#0369a1;font-weight:700;border-radius:6px">
+          🛠️ مختبر التصنيع (FabLab)
+        </button>
+        <button type="button" class="btn btn-light risk-preset-btn" data-preset="physics" style="padding:4px 9px;font-size:10.5px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-weight:700;border-radius:6px">
+          ⚡ مختبر الفيزياء والإلكترونيات
+        </button>
+        <button type="button" class="btn btn-light risk-preset-btn" data-preset="mechanical" style="padding:4px 9px;font-size:10.5px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-weight:700;border-radius:6px">
+          ⚙️ ورشة الميكانيكا والتشغيل
+        </button>
+        <button type="button" class="btn btn-light risk-preset-btn" data-preset="chemical" style="padding:4px 9px;font-size:10.5px;border:1px solid #cbd5e1;background:#ffffff;color:#0f172a;font-weight:700;border-radius:6px">
+          🧪 مختبر الكيمياء والمواد
+        </button>
+      </div>
+    </div>
     <div class="row row3">
       <div class="field">
         <label><i class="fa-solid fa-location-dot"></i> المكان / المختبر / القسم (Activity to be assessed / Location)</label>
@@ -875,69 +1235,140 @@
     </div>
   </div>
 
-  <!-- 5x5 Interactive Risk Matrix Visualizer -->
+  <!-- Official SUTech HSE Risk and Environmental Aspect Assessment Matrix (6x5) -->
   <div class="card" id="riskMatrixCard">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <h3 style="margin:0"><i class="fa-solid fa-table-cells-large" style="color:var(--sut-red)"></i> مصفوفة تقييم المخاطر التفاعلية 5×5 (Interactive 5x5 Risk Matrix)</h3>
-      <div style="display:flex;gap:6px;font-size:11px;font-weight:700">
-        <span class="risk-level-badge low">Low (1-4)</span>
-        <span class="risk-level-badge medium">Medium (5-9)</span>
-        <span class="risk-level-badge high">High (10-14)</span>
-        <span class="risk-level-badge critical">Critical (15-25)</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <h3 style="margin:0"><i class="fa-solid fa-table-cells-large" style="color:var(--sut-red)"></i> مصفوفة تقييم المخاطر والمظاهر البيئية (Risk &amp; Environmental Aspect Assessment Matrix 6×5)</h3>
+      <div style="display:flex;gap:6px;font-size:11px;font-weight:700;flex-wrap:wrap">
+        <span class="risk-level-badge" style="background:#86efac;color:#000000;border:1px solid #4ade80">1 – 8 (Low / تحكم إداري / PPE)</span>
+        <span class="risk-level-badge" style="background:#fef08a;color:#000000;border:1px solid #facc15">9 – 15 (Medium / تحكم هندسي)</span>
+        <span class="risk-level-badge" style="background:#f87171;color:#000000;border:1px solid #f87171">16 – 30 (Critical / إيقاف النشاط فوراً)</span>
       </div>
     </div>
-    <div class="risk-matrix-wrap">
-      <table class="risk-matrix-table" id="interactiveRiskMatrix">
+    <div class="risk-matrix-wrap" style="overflow-x:auto">
+      <table class="risk-matrix-table official-sut-matrix-table" id="interactiveRiskMatrix" style="width:100%;text-align:center">
         <thead>
           <tr>
-            <th style="background:#040d1a">الاحتمالية \ الشدة (L \ S)</th>
-            <th>1. ضئيل (Insignificant)</th>
-            <th>2. طفيف (Minor)</th>
-            <th>3. متوسط (Moderate)</th>
-            <th>4. جسيم (Major)</th>
-            <th>5. كارثي (Catastrophic)</th>
+            <th rowspan="2" style="background:#0b1f3a;color:#ffffff;width:3%">#</th>
+            <th colspan="3" style="background:#0b1f3a;color:#ffffff;font-size:11px">Potential Effect / Consequences &nbsp;|&nbsp; التأثير / التبعات</th>
+            <th colspan="5" style="background:#0b1f3a;color:#ffffff;font-size:11px">Frequency / Probability &amp; Risk Class &nbsp;|&nbsp; التكرار / الاحتمالية وفئة الخطر</th>
+          </tr>
+          <tr>
+            <th style="width:17%;background:#f1f5f9;color:#0b1f3a"><b>Safety</b><br><small>السلامة</small></th>
+            <th style="width:18%;background:#f1f5f9;color:#0b1f3a"><b>Health</b><br><small>الصحة</small></th>
+            <th style="width:18%;background:#f1f5f9;color:#0b1f3a"><b>Environment</b><br><small>البيئة</small></th>
+            <th style="width:8.8%;background:#f1f5f9;color:#0b1f3a"><b>1 - 5 / years</b><br><small>(1) 1-5 سنين</small></th>
+            <th style="width:8.8%;background:#f1f5f9;color:#0b1f3a"><b>5 - 10 / years</b><br><small>(2) 5-10 سنين</small></th>
+            <th style="width:8.8%;background:#f1f5f9;color:#0b1f3a"><b>1 - 5 / month</b><br><small>(3) شهرياً</small></th>
+            <th style="width:8.8%;background:#f1f5f9;color:#0b1f3a"><b>1 - 5 / week</b><br><small>(4) أسبوعياً</small></th>
+            <th style="width:8.8%;background:#f1f5f9;color:#0b1f3a"><b>Daily / يومي</b><br><small>(5) يومي</small></th>
           </tr>
         </thead>
         <tbody>
+          <!-- Row 1 -->
           <tr>
-            <th>5. شبه مؤكد (Almost Certain)</th>
-            <td class="matrix-cell-med" data-l="5" data-s="1">5 (Med)<span class="matrix-hazard-count" id="cell_5_1">0</span></td>
-            <td class="matrix-cell-high" data-l="5" data-s="2">10 (High)<span class="matrix-hazard-count" id="cell_5_2">0</span></td>
-            <td class="matrix-cell-crit" data-l="5" data-s="3">15 (Crit)<span class="matrix-hazard-count" id="cell_5_3">0</span></td>
-            <td class="matrix-cell-crit" data-l="5" data-s="4">20 (Crit)<span class="matrix-hazard-count" id="cell_5_4">0</span></td>
-            <td class="matrix-cell-crit" data-l="5" data-s="5">25 (Crit)<span class="matrix-hazard-count" id="cell_5_5">0</span></td>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">1</th>
+            <td style="text-align:start;font-size:11px"><b>Near miss</b><br><small style="color:var(--muted)">حادث وشيك</small></td>
+            <td style="text-align:start;font-size:11px"><b>Nuisance, Discomfort</b><br><small style="color:var(--muted)">إحساس بعدم الراحة</small></td>
+            <td style="text-align:start;font-size:11px"><b>Small emissions</b><br><small style="color:var(--muted)">انبعاثات بسيطة</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="1" data-l="1">1<span class="matrix-hazard-count" id="cell_1_1">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="1" data-l="2">2<span class="matrix-hazard-count" id="cell_1_2">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="1" data-l="3">3<span class="matrix-hazard-count" id="cell_1_3">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="1" data-l="4">4<span class="matrix-hazard-count" id="cell_1_4">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="1" data-l="5">5<span class="matrix-hazard-count" id="cell_1_5">0</span></td>
           </tr>
+          <!-- Row 2 -->
           <tr>
-            <th>4. مرجح (Likely)</th>
-            <td class="matrix-cell-low" data-l="4" data-s="1">4 (Low)<span class="matrix-hazard-count" id="cell_4_1">0</span></td>
-            <td class="matrix-cell-med" data-l="4" data-s="2">8 (Med)<span class="matrix-hazard-count" id="cell_4_2">0</span></td>
-            <td class="matrix-cell-high" data-l="4" data-s="3">12 (High)<span class="matrix-hazard-count" id="cell_4_3">0</span></td>
-            <td class="matrix-cell-crit" data-l="4" data-s="4">16 (Crit)<span class="matrix-hazard-count" id="cell_4_4">0</span></td>
-            <td class="matrix-cell-crit" data-l="4" data-s="5">20 (Crit)<span class="matrix-hazard-count" id="cell_4_5">0</span></td>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">2</th>
+            <td style="text-align:start;font-size:11px"><b>First Aid</b><br><small style="color:var(--muted)">إسعافات أولية</small></td>
+            <td style="text-align:start;font-size:11px"><b>Health Complaints</b><br><small style="color:var(--muted)">شكوى صحية</small></td>
+            <td style="text-align:start;font-size:11px"><b>Spills that can be cleaned up immediately</b><br><small style="color:var(--muted)">انسكابات يمكن تنظيفها فوراً</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="2" data-l="1">2<span class="matrix-hazard-count" id="cell_2_1">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="2" data-l="2">4<span class="matrix-hazard-count" id="cell_2_2">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="2" data-l="3">6<span class="matrix-hazard-count" id="cell_2_3">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="2" data-l="4">8<span class="matrix-hazard-count" id="cell_2_4">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="2" data-l="5">10<span class="matrix-hazard-count" id="cell_2_5">0</span></td>
           </tr>
+          <!-- Row 3 -->
           <tr>
-            <th>3. محتمل (Possible)</th>
-            <td class="matrix-cell-low" data-l="3" data-s="1">3 (Low)<span class="matrix-hazard-count" id="cell_3_1">0</span></td>
-            <td class="matrix-cell-med" data-l="3" data-s="2">6 (Med)<span class="matrix-hazard-count" id="cell_3_2">0</span></td>
-            <td class="matrix-cell-med" data-l="3" data-s="3">9 (Med)<span class="matrix-hazard-count" id="cell_3_3">0</span></td>
-            <td class="matrix-cell-high" data-l="3" data-s="4">12 (High)<span class="matrix-hazard-count" id="cell_3_4">0</span></td>
-            <td class="matrix-cell-crit" data-l="3" data-s="5">15 (Crit)<span class="matrix-hazard-count" id="cell_3_5">0</span></td>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">3</th>
+            <td style="text-align:start;font-size:11px"><b>Medical Treatment &amp; Restricted Work</b><br><small style="color:var(--muted)">حالة تستلزم متابعة طبية أو تغير لنوع العمل</small></td>
+            <td style="text-align:start;font-size:11px"><b>Exceeding working Exposure Limits, Work-related illness</b><br><small style="color:var(--muted)">تعرض يتخطى حدود النسبة المسموح بها أو حالة صحية تستلزم متابعة</small></td>
+            <td style="text-align:start;font-size:11px"><b>Emissions/spills leading to investigations &amp; remediation</b><br><small style="color:var(--muted)">انبعاثات / انسكاب بكميات كبيرة</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="3" data-l="1">3<span class="matrix-hazard-count" id="cell_3_1">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="3" data-l="2">6<span class="matrix-hazard-count" id="cell_3_2">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="3" data-l="3">9<span class="matrix-hazard-count" id="cell_3_3">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="3" data-l="4">12<span class="matrix-hazard-count" id="cell_3_4">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="3" data-l="5">15<span class="matrix-hazard-count" id="cell_3_5">0</span></td>
           </tr>
+          <!-- Row 4 -->
           <tr>
-            <th>2. غير مرجح (Unlikely)</th>
-            <td class="matrix-cell-low" data-l="2" data-s="1">2 (Low)<span class="matrix-hazard-count" id="cell_2_1">0</span></td>
-            <td class="matrix-cell-low" data-l="2" data-s="2">4 (Low)<span class="matrix-hazard-count" id="cell_2_2">0</span></td>
-            <td class="matrix-cell-med" data-l="2" data-s="3">6 (Med)<span class="matrix-hazard-count" id="cell_2_3">0</span></td>
-            <td class="matrix-cell-med" data-l="2" data-s="4">8 (Med)<span class="matrix-hazard-count" id="cell_2_4">0</span></td>
-            <td class="matrix-cell-high" data-l="2" data-s="5">10 (High)<span class="matrix-hazard-count" id="cell_2_5">0</span></td>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">4</th>
+            <td style="text-align:start;font-size:11px"><b>Losttime Case</b><br><small style="color:var(--muted)">غياب عن العمل بسبب الإصابة (LTI)</small></td>
+            <td style="text-align:start;font-size:11px"><b>Work related illness</b><br><small style="color:var(--muted)">غياب عن العمل بسبب مرض مهني</small></td>
+            <td style="text-align:start;font-size:11px"><b>Emissions/spills with limited damage off site</b><br><small style="color:var(--muted)">انبعاث / انسكاب كبير له تأثير محدود خارج الموقع</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="4" data-l="1">4<span class="matrix-hazard-count" id="cell_4_1">0</span></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="4" data-l="2">8<span class="matrix-hazard-count" id="cell_4_2">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="4" data-l="3">12<span class="matrix-hazard-count" id="cell_4_3">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="4" data-l="4">16<span class="matrix-hazard-count" id="cell_4_4">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="4" data-l="5">20<span class="matrix-hazard-count" id="cell_4_5">0</span></td>
           </tr>
+          <!-- Row 5 -->
           <tr>
-            <th>1. نادر (Rare)</th>
-            <td class="matrix-cell-low" data-l="1" data-s="1">1 (Low)<span class="matrix-hazard-count" id="cell_1_1">0</span></td>
-            <td class="matrix-cell-low" data-l="1" data-s="2">2 (Low)<span class="matrix-hazard-count" id="cell_1_2">0</span></td>
-            <td class="matrix-cell-low" data-l="1" data-s="3">3 (Low)<span class="matrix-hazard-count" id="cell_1_3">0</span></td>
-            <td class="matrix-cell-low" data-l="1" data-s="4">4 (Low)<span class="matrix-hazard-count" id="cell_1_4">0</span></td>
-            <td class="matrix-cell-med" data-l="1" data-s="5">5 (Med)<span class="matrix-hazard-count" id="cell_1_5">0</span></td>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">5</th>
+            <td style="text-align:start;font-size:11px"><b>Partial / Complete disability</b><br><small style="color:var(--muted)">إصابة ينتج عنها عجز جزئي أو كلي</small></td>
+            <td style="text-align:start;font-size:11px"><b>Occupational illness, Partial / Complete disability</b><br><small style="color:var(--muted)">مرض مهني يسبب عجز</small></td>
+            <td style="text-align:start;font-size:11px"><b>Emissions/spills with longer lasting damage</b><br><small style="color:var(--muted)">انبعاثات أو انسكاب له تأثير على المدى البعيد</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="5" data-l="1">5<span class="matrix-hazard-count" id="cell_5_1">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="5" data-l="2">10<span class="matrix-hazard-count" id="cell_5_2">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="5" data-l="3">15<span class="matrix-hazard-count" id="cell_5_3">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="5" data-l="4">20<span class="matrix-hazard-count" id="cell_5_4">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="5" data-l="5">25<span class="matrix-hazard-count" id="cell_5_5">0</span></td>
+          </tr>
+          <!-- Row 6 -->
+          <tr>
+            <th style="background:#f8fafc;color:#0b1f3a;font-weight:bold">6</th>
+            <td style="text-align:start;font-size:11px"><b>Fatality</b><br><small style="color:var(--muted)">حالة وفاة</small></td>
+            <td style="text-align:start;font-size:11px"><b>Fatal Occupational illness</b><br><small style="color:var(--muted)">مرض مهني يسبب الوفاة</small></td>
+            <td style="text-align:start;font-size:11px"><b>Emissions/spills with permanent damage</b><br><small style="color:var(--muted)">انبعاثات/انسكاب ينتج عنه ضرر دائم أو لمدة طويلة</small></td>
+            <td class="matrix-cell-low matrix-score-green" data-s="6" data-l="1">6<span class="matrix-hazard-count" id="cell_6_1">0</span></td>
+            <td class="matrix-cell-med matrix-score-yellow" data-s="6" data-l="2">12<span class="matrix-hazard-count" id="cell_6_2">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="6" data-l="3">18<span class="matrix-hazard-count" id="cell_6_3">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="6" data-l="4">24<span class="matrix-hazard-count" id="cell_6_4">0</span></td>
+            <td class="matrix-cell-crit matrix-score-red" data-s="6" data-l="5">30<span class="matrix-hazard-count" id="cell_6_5">0</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Hierarchy of Controls Table -->
+      <table class="official-control-measure-table" style="width:100%;margin-top:10px;border-collapse:collapse;font-size:10px">
+        <thead>
+          <tr style="background:#0b1f3a;color:#ffffff">
+            <th style="width:25%;padding:6px 10px;text-align:center"><b>Risk Class &nbsp;|&nbsp; درجة الخطورة</b></th>
+            <th style="padding:6px 10px;text-align:center"><b>Type of Control Measure &nbsp;|&nbsp; نوع وسيلة التحكم المعتمدة</b></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:#86efac;color:#000000">
+            <td style="font-weight:800;text-align:center;padding:7px;font-size:12px">1 – 8</td>
+            <td style="padding:7px 12px;font-weight:700">
+              <div>Administrative control or Use of proper Personal Protective Equipment (PPE)</div>
+              <small style="font-weight:600">وسائل تحكم إدارية أو استخدام مهمات الوقاية الشخصية المناسبة</small>
+            </td>
+          </tr>
+          <tr style="background:#fef08a;color:#000000">
+            <td style="font-weight:800;text-align:center;padding:7px;font-size:12px">9 – 15</td>
+            <td style="padding:7px 12px;font-weight:700">
+              <div>Engineering control is required</div>
+              <small style="font-weight:600">تحكم هندسي مطلوب وإلزامي مع تطبيق الضوابط الإدارية</small>
+            </td>
+          </tr>
+          <tr style="background:#f87171;color:#000000">
+            <td style="font-weight:800;text-align:center;padding:7px;font-size:12px">More than 16 (16 – 30)</td>
+            <td style="padding:7px 12px;font-weight:700">
+              <div>Stop operation immediately till elimination or substitution</div>
+              <small style="font-weight:600">إيقاف النشاط فوراً لحين استبداله أو عزله / إزالته</small>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -959,14 +1390,40 @@
         <button class="btn btn-light" id="riskPrintBtn" style="border:1px solid #cbd5e1;color:var(--sut-navy)"><i class="fa-solid fa-print"></i> طباعة</button>
       </div>
     </div>
-      <div class="output-body" id="riskAssessmentReport"></div>
+    <div class="output-body" id="riskAssessmentReport"></div>
+  </div>
+
+  <!-- Historical Risk Assessments & Version Registers Archive -->
+  <div class="module-history-card">
+    <div class="module-history-header">
+      <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--sut-red)"></i> <span>سجل وأرشيف دراسات تقييم المخاطر والأثر البيئي (Risk Assessment Register &amp; History)</span> <span class="history-count-badge" id="riskHistoryCount">0</span></h3>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-light" onclick="saveCurrentRiskAssessment(true)" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-floppy-disk" style="color:#059669"></i> حفظ التقييم الحالي</button>
+        <button class="btn btn-blue" onclick="clearRiskForm()" style="font-size:11px;padding:5px 10px"><i class="fa-solid fa-plus"></i> دراسة جديدة</button>
+      </div>
+    </div>
+    <div class="history-filter-bar">
+      <input type="text" id="searchRiskHistory" placeholder="🔍 بحث في دراسات المخاطر والأنشطة..." style="flex:1;min-width:180px">
+      <select id="filterRiskArea" style="min-width:150px">
+        <option value="">جميع المختبرات والورش</option>
+      </select>
+      <select id="filterRiskLevel" style="min-width:120px">
+        <option value="">جميع مستويات الخطر</option>
+        <option value="Critical">Critical (حرج / أحمر)</option>
+        <option value="Medium">Medium (متوسط / أصفر)</option>
+        <option value="Low">Low (منخفض / أخضر)</option>
+      </select>
+    </div>
+    <div class="history-table-wrap">
+      <div id="riskHistoryTableContainer"></div>
+    </div>
   </div>
 </section>
 
 <!-- MONTHLY EXECUTIVE REPORT -->
 <section id="monthly" class="panel">
   <div class="hero">
-    <h2><i class="fa-solid fa-file-signature" style="color:var(--sut-red)"></i> Monthly HSE Management Intelligence &amp; Performance Indicators</h2>
+    <h2><i class="fa-solid fa-file-signature" style="color:var(--sut-red)"></i> Monthly HSE Executive Performance &amp; Management Signals</h2>
     <p>توليد التقرير التنفيذي الشامل وإشارات الإدارة الاستراتيجية استناداً إلى البيانات التشغيلية المباشرة المعتمدة للحرم الجامعي (المخالفات، البلاغات الوشيكة، تصاريح العمل، التدريب، وفحوصات الأسطول والأغذية) لتحديد أولويات وتوجيهات القيادة بدقة.</p>
   </div>
 
@@ -994,7 +1451,6 @@
         <label><i class="fa-solid fa-sliders"></i> مصدر البيانات (Data Scope)</label>
         <select id="monthlyDataScope">
           <option value="live_full" selected>⚡ بيانات النظام التشغيلية الشاملة (Live System Data)</option>
-          <option value="saved_risk">💾 تقييمات المخاطر المحفوظة (Saved Risk Assessments)</option>
           <option value="file_only">📁 ملف خارجي فقط (Uploaded Document Only)</option>
           <option value="combined">⚡ + 📁 دمج بيانات النظام مع الملف المرفق (Combined)</option>
         </select>
@@ -1152,8 +1608,8 @@
   <div class="row">
     <div class="field">
       <label><i class="fa-solid fa-location-dot"></i> الموقع / المنطقة (Area / Location):</label>
-      <input id="editFindingArea" list="editAreaList" placeholder="Workshop / Labs / Campus...">
-      <datalist id="editAreaList">
+      <input id="editFindingArea" list="editAreaListOsha" placeholder="Workshop / Labs / Campus...">
+      <datalist id="editAreaListOsha">
         <option value="Campus General / مبنى الجامعة الرئيسي">
         <option value="Engineering Workshops / الورش الهندسية">
         <option value="Science & Tech Laboratories / المعامل">
@@ -1255,6 +1711,87 @@
 </div>
 </div>
 
+<!-- EDIT PTW (PERMIT TO WORK) MODAL -->
+<div class="modal" id="editPtwModal">
+<div class="modal-box" style="max-width:700px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
+    <h3 style="margin:0;display:flex;align-items:center;gap:8px;color:var(--sut-navy);font-size:16px">
+      <i class="fa-solid fa-pen-to-square" style="color:var(--sut-red)"></i> تعديل بيانات تصريح العمل (Edit Permit to Work - PTW)
+    </h3>
+    <button type="button" onclick="closeEditPTWModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;line-height:1">&times;</button>
+  </div>
+  
+  <input type="hidden" id="editPtwId">
+  
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-hashtag"></i> رقم التصريح (Permit No.):</label>
+      <input type="text" id="editPtwNo" placeholder="مثال: PTW-2026-001" required>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-shield-halved"></i> نوع العمل المصرح به (Work Type):</label>
+      <select id="editPtwType">
+        <option value="Hot Work (أعمال ساخنة ولحام)">🔥 Hot Work (أعمال ساخنة ولحام)</option>
+        <option value="Cold Work (أعمال عامة)">❄️ Cold Work (أعمال عامة)</option>
+        <option value="Work at Height (عمل على ارتفاعات)">🪜 Work at Height (عمل على ارتفاعات)</option>
+        <option value="Electrical Isolation (عزل وتحكم كهربائي)">⚡ Electrical Isolation (عزل وتحكم كهربائي)</option>
+        <option value="Confined Space Entry (أماكن مغلقة)">🚪 Confined Space Entry (أماكن مغلقة)</option>
+        <option value="Excavation & Trenching (حفر وتخندق)">🚜 Excavation & Trenching (حفر وتخندق)</option>
+        <option value="Heavy Lifting & Crane (رفع بالأوناش)">🏗️ Heavy Lifting & Crane (رفع بالأوناش)</option>
+        <option value="Chemical Handling (تداول مواد كيميائية)">🧪 Chemical Handling (تداول مواد كيميائية)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-location-dot"></i> الموقع / المبنى (Location):</label>
+      <input type="text" id="editPtwLoc" placeholder="المبنى، الطابق، المختبر..." required>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-building-user"></i> المقاول / القسم المنفذ (Contractor/Dept):</label>
+      <input type="text" id="editPtwContractor" placeholder="اسم الشركة المنفذة أو القسم..." required>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-circle-info"></i> حالة التصريح (Status):</label>
+      <select id="editPtwStatus">
+        <option value="Issued & Active">🟢 ساري ونشط (Issued & Active)</option>
+        <option value="Under Review">🟡 قيد المراجعة والتدقيق (Under Review)</option>
+        <option value="Closed & Handed Over">⚪ مغلق ومسلم رسمياً (Closed & Handed Over)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-calendar-days"></i> بداية الصلاحية (Start Time):</label>
+      <input type="text" id="editPtwStart" placeholder="YYYY-MM-DD HH:MM">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label><i class="fa-solid fa-clock"></i> نهاية الصلاحية (End Time):</label>
+      <input type="text" id="editPtwEnd" placeholder="YYYY-MM-DD HH:MM">
+    </div>
+    <div class="field">
+      <label><i class="fa-solid fa-user-shield"></i> مسؤول السلامة المعتمد (SUT HSE Officer):</label>
+      <input type="text" id="editPtwSutOfficer" placeholder="اسم مهندس السلامة...">
+    </div>
+  </div>
+
+  <div class="field">
+    <label><i class="fa-solid fa-user-tie"></i> مشرف الموقع / المقاول (Contractor Supervisor):</label>
+    <input type="text" id="editPtwContractorOfficer" placeholder="اسم المشرف الميداني...">
+  </div>
+
+  <div class="actions" style="justify-content:flex-end;margin-top:14px;gap:8px">
+    <button type="button" class="btn" onclick="closeEditPTWModal()" style="background:#e2e8f0;color:#334155">إلغاء</button>
+    <button type="button" class="btn btn-sut" onclick="saveEditedPTW()"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات وتحديث النظام</button>
+  </div>
+</div>
+</div>
+
 <!-- SETTINGS -->
 <div class="modal" id="settings">
 <div class="modal-box">
@@ -1318,6 +1855,94 @@
   <div class="actions" style="justify-content:flex-end;margin-top:12px">
     <button class="btn" id="settingsCancelBtn" style="background:#e2e8f0">Cancel</button>
     <button class="btn btn-sut" id="settingsSaveBtn">Save Settings</button>
+  </div>
+</div>
+</div>
+
+<!-- UNIVERSAL DATA BACKUP & PORTABILITY CENTER -->
+<div class="modal" id="backupModal" style="display:none">
+<div class="modal-box" style="max-width:700px;width:95%">
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px">
+    <h3 style="margin:0;display:flex;align-items:center;gap:8px;font-size:15px;color:var(--sut-navy)">
+      <i class="fa-solid fa-server" style="color:var(--blue)"></i>
+      مركز إدارة البيانات والنسخ الاحتياطي الشامل (HSE Data Portability &amp; Backup Center)
+    </h3>
+    <button class="btn btn-dark" id="backupCloseBtn" type="button" style="padding:3px 8px;font-size:12px">&times;</button>
+  </div>
+
+  <p style="font-size:11.5px;color:#475569;margin-bottom:10px">
+    يضمن هذا المركز حفظ كافة سجلات السلامة والصحة المهنية عبر جميع أقسام المنظومة بصورة دائمة، مع إمكانية التصدير والاستعادة والنقل الفوري دون أي فقدان للبيانات.
+  </p>
+
+  <!-- Live Storage Statistics Grid -->
+  <div class="backup-stats-grid">
+    <div class="backup-stat-card">
+      <small>📋 الفحوصات (Inspections)</small>
+      <strong id="bStatInspections">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>🛡️ تقييمات المخاطر (RA)</small>
+      <strong id="bStatRisk">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>🛠️ المخالفات (NCR &amp; CAPA)</small>
+      <strong id="bStatFindings">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>🚨 الحوادث (Incidents)</small>
+      <strong id="bStatIncidents">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>📄 تصاريح العمل (PTW)</small>
+      <strong id="bStatPtw">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>🎓 سجل التدريب (Training)</small>
+      <strong id="bStatTraining">0</strong>
+    </div>
+    <div class="backup-stat-card">
+      <small>📑 محاضر MoM</small>
+      <strong id="bStatMom">0</strong>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+    <!-- Export Master JSON -->
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <b style="font-size:12.5px;color:#0369a1"><i class="fa-solid fa-cloud-arrow-down"></i> تصدير نسخة احتياطية شاملة (Master JSON Backup)</b>
+        <small style="display:block;color:#475569;font-size:10.5px">تحميل ملف JSON كامل يحتوي على كل السجلات والقوائم والتقارير لاستعادتها بأي وقت.</small>
+      </div>
+      <button class="btn btn-blue" id="exportMasterBackupBtn" type="button" style="padding:7px 14px;font-size:11.5px;white-space:nowrap">
+        <i class="fa-solid fa-download"></i> تصدير JSON
+      </button>
+    </div>
+
+    <!-- Import Master JSON -->
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <b style="font-size:12.5px;color:#166534"><i class="fa-solid fa-cloud-arrow-up"></i> استيراد واستعادة نسخة احتياطية (Restore Master JSON)</b>
+        <small style="display:block;color:#475569;font-size:10.5px">رفع ملف النسخة الاحتياطية مع خيار الدمج أو الاستبدال الشامل للسجلات.</small>
+      </div>
+      <button class="btn btn-green" id="triggerImportBackupBtn" type="button" style="padding:7px 14px;font-size:11.5px;white-space:nowrap">
+        <i class="fa-solid fa-upload"></i> استيراد ملف
+      </button>
+    </div>
+
+    <!-- Export Master Excel / CSV Workbook -->
+    <div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <b style="font-size:12.5px;color:#854d0e"><i class="fa-solid fa-file-excel"></i> تصدير السجل المجمع (Consolidated Master Excel Workbook)</b>
+        <small style="display:block;color:#475569;font-size:10.5px">تصدير ملف إكسيل متعدد الصفحات يضم كافة المخالفات والفحوصات والمخاطر والتصاريح والتدريب.</small>
+      </div>
+      <button class="btn btn-dark" id="exportMasterExcelBtn" type="button" style="padding:7px 14px;font-size:11.5px;white-space:nowrap;background:#1e293b">
+        <i class="fa-solid fa-file-excel" style="color:#22c55e"></i> تصدير Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="actions" style="justify-content:flex-end;margin-top:14px">
+    <button class="btn btn-dark" id="backupCloseBtn2" type="button">إغلاق</button>
   </div>
 </div>
 </div>
@@ -1445,7 +2070,326 @@
 </div>
 </div>
 
+<!-- =========================================================================
+     INSPECTION MANAGEMENT MODALS
+     ========================================================================= -->
+
+<!-- Modal 1: + NEW INSPECTION SETUP MODAL -->
+<div id="newInspectionModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:760px">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <i class="fa-solid fa-plus-circle" style="color:var(--sut-green);font-size:18px"></i>
+        <b style="font-size:15px;color:var(--sut-navy)">بدء وتفعيل فحص ميداني جديد (New Digital Inspection)</b>
+      </div>
+      <button class="modal-close-btn" id="closeNewInspModalBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="row row3">
+        <div class="field">
+          <label>رقم الفحص (Auto-Generated ID)</label>
+          <input id="newInspIdInput" readonly style="font-weight:bold;color:var(--sut-navy);background:#f8fafc">
+        </div>
+        <div class="field">
+          <label>تاريخ الفحص (Date)</label>
+          <input id="newInspDateInput" type="date">
+        </div>
+        <div class="field">
+          <label>وقت الفحص (Time)</label>
+          <input id="newInspTimeInput" type="time">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>نوع وتصنيف الفحص (Inspection Type)</label>
+          <select id="newInspTypeSelect" style="font-weight:600;color:var(--sut-navy)">
+            <option value="Monthly HSE Inspection">Monthly HSE Inspection (الفحص الشهري الشامل للسلامة)</option>
+            <option value="Restaurant Inspection">Restaurant Inspection (تفتيش المطاعم وسلامة الغذاء)</option>
+            <option value="Cafeteria Inspection">Cafeteria Inspection (تفتيش كافيتريات الجامعة)</option>
+            <option value="Pantry Inspection">Pantry Inspection (تفتيش البوفيهات وأماكن الضيافة)</option>
+            <option value="Laboratory Inspection">Laboratory Inspection (فحص وتفتيش المختبرات الكيميائية والعلمية)</option>
+            <option value="Fire Extinguisher Inspection">Fire Extinguisher Inspection (الفحص الدوري لطفايات الحريق)</option>
+            <option value="Fire Safety Inspection">Fire Safety Inspection (فحص شبكات الإنذار ومضخات الحريق)</option>
+            <option value="Elevator Inspection">Elevator Inspection (فحص واختبار مصاعد الركاب والخدمات)</option>
+            <option value="Electrical Inspection">Electrical Inspection (فحص محطات ولوحات التوزيع الكهربائي)</option>
+            <option value="Workshop Inspection">Workshop &amp; FabLab Inspection (فحص ورش الهندسة والمكائن)</option>
+            <option value="Warehouse Inspection">Warehouse &amp; Storage Inspection (فحص المخازن ومستودعات المواد)</option>
+            <option value="PPE Inspection">PPE Compliance Inspection (تفتيش مهمات الوقاية الشخصية)</option>
+            <option value="Housekeeping Inspection">Housekeeping &amp; Cleanliness Inspection (فحص النظافة والترتيب العام)</option>
+            <option value="Machinery / Equipment Inspection">Machinery &amp; Equipment Inspection (فحص الآلات والمعدات الثقيلة)</option>
+            <option value="Contractor Inspection">Contractor Safety Inspection (تفتيش مواقع مقاولي الصيانة والإنشاءات)</option>
+            <option value="Bus / Vehicle Inspection">Bus &amp; Fleet Inspection (فحص حافلات وسيارات نقل الطلاب)</option>
+            <option value="Parking / Traffic Safety Inspection">Parking &amp; Traffic Safety Inspection (فحص المرور والمواقف)</option>
+            <option value="Emergency Exit Inspection">Emergency Exit &amp; Egress Inspection (فحص مخارج ومسارات الطوارئ)</option>
+            <option value="Building Inspection">Building Civil &amp; Structural Inspection (فحص المباني والمنشآت)</option>
+            <option value="Environmental Inspection">Environmental &amp; Sustainability Inspection (تفتيش الاشتراطات البيئية)</option>
+            <option value="Waste Management Inspection">Waste Management Inspection (فحص إدارة وفرز المخلفات الخطرة)</option>
+            <option value="Event Safety Inspection">Event Safety Inspection (فحص تأمين الفعاليات والمؤتمرات)</option>
+            <option value="Custom Inspection">Custom Inspection (فحص مخصص)</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1">
+          <label>قائمة الفحص / النموذج (Checklist / Template)</label>
+          <select id="newInspTemplateSelect" style="font-weight:600;color:var(--sut-navy)"></select>
+        </div>
+      </div>
+
+      <div class="row row3">
+        <div class="field">
+          <label>المقر / الحرم (Site / Campus)</label>
+          <input id="newInspSiteInput" value="El Sewedy University of Technology (SUTech) - Main Campus">
+        </div>
+        <div class="field">
+          <label>المبنى (Building)</label>
+          <input id="newInspBuildingInput" placeholder="Engineering Bldg A / Admin Bldg / Labs">
+        </div>
+        <div class="field">
+          <label>الموقع الدقيق / الغرفة (Area / Location)</label>
+          <input id="newInspAreaInput" placeholder="e.g. Ground Floor Kitchen / FabLab Workshop">
+        </div>
+      </div>
+
+      <div class="row row3">
+        <div class="field">
+          <label>القسم / الإدارة (Department)</label>
+          <input id="newInspDeptInput" placeholder="e.g. Maintenance / Food Services / Labs">
+        </div>
+        <div class="field">
+          <label>المفتش المسؤول (Lead Inspector)</label>
+          <input id="newInspInspectorInput" value="م. إبراهيم سعيد (HSE Department)">
+        </div>
+        <div class="field">
+          <label>وردية العمل (Shift - Optional)</label>
+          <select id="newInspShiftSelect">
+            <option value="Morning Shift">الوردية الصباحية (Morning Shift)</option>
+            <option value="Evening Shift">الوردية المسائية (Evening Shift)</option>
+            <option value="Night Shift">الوردية الليلية (Night Shift)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>بمرافقة (Accompanied By - Optional)</label>
+        <input id="newInspAccompaniedInput" placeholder="اسم المشرف أو مسؤول المنشأة المرافق للجولة التفتيشية...">
+      </div>
+
+      <div class="field">
+        <label>ملاحظات عامة ونطاق الفحص (General Scope &amp; Notes)</label>
+        <textarea id="newInspNotesInput" rows="2" placeholder="اكتب الهدف من الجولة التفتيشية وأي متطلبات خاصة..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-light" id="cancelNewInspModalBtn">إلغاء</button>
+      <button class="btn btn-green" id="startNewDigitalInspBtn" style="font-weight:700">
+        <i class="fa-solid fa-bolt"></i> بدء التفتيش الرقمي (Start Digital Inspection)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: FINDING EDIT / VERIFICATION / CLOSURE MODAL -->
+<div id="inspFindingModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:720px">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <i class="fa-solid fa-triangle-exclamation" style="color:var(--sut-red);font-size:18px"></i>
+        <b style="font-size:15px;color:var(--sut-navy)" id="fndModalHeaderTitle">تسجيل وتعديل ملاحظة عدم مطابقة (Inspection Finding &amp; CAPA)</b>
+      </div>
+      <button class="modal-close-btn" id="closeInspFindingModalBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fndModalFindingId">
+      <input type="hidden" id="fndModalQuestionId">
+      
+      <div class="row row3">
+        <div class="field">
+          <label>رقم الملاحظة (Finding ID)</label>
+          <input id="fndModalIdDisplay" readonly style="font-weight:bold;color:var(--sut-navy);background:#f8fafc">
+        </div>
+        <div class="field">
+          <label>درجة الخطورة (Severity / Priority)</label>
+          <select id="fndModalSeveritySelect" style="font-weight:bold">
+            <option value="Critical">Critical (حرج / إيقاف فوري)</option>
+            <option value="High" selected>High (مرتفع / يتطلب تدخل عاجل)</option>
+            <option value="Medium">Medium (متوسط)</option>
+            <option value="Low">Low (منخفض / تحسين)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>حالة الملاحظة (Finding Status)</label>
+          <select id="fndModalStatusSelect" style="font-weight:bold">
+            <option value="Open">Open (مفتوحة / جاري الإخطار)</option>
+            <option value="In Progress">In Progress (جاري التنفيذ)</option>
+            <option value="Ready for Verification">Ready for Verification (جاهزة للتحقق)</option>
+            <option value="Closed">Closed (مغلقة ومحققة)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>بند الفحص والتصنيف (Checklist Item &amp; Category)</label>
+        <input id="fndModalItemDisplay" readonly style="background:#f8fafc;font-weight:600">
+      </div>
+
+      <div class="field">
+        <label>وصف المخالفة المرصودة بدقة (Finding Description)</label>
+        <textarea id="fndModalDescInput" rows="2" placeholder="ما المشكلة المرصودة بالتفصيل وما معيار السلامة المخالف؟"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>الموقع الدقيق (Specific Location)</label>
+          <input id="fndModalLocationInput" placeholder="مثال: ورشة التصنيع - بجوار المخرطة رقم 2">
+        </div>
+        <div class="field">
+          <label>الإجراء الفوري المتخذ (Immediate Action Taken)</label>
+          <input id="fndModalImmediateActionInput" placeholder="مثال: إيقاف الماكينة وفصل التيار فوراً">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>الإجراء التصحيحي المطلوب (Recommended Corrective Action - CAPA)</label>
+        <textarea id="fndModalCapaInput" rows="2" placeholder="ما الإجراء الجذري المطلوب لمنع تكرار المخالفة؟"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>المسؤول عن التنفيذ (Responsible Person / Dept)</label>
+          <input id="fndModalResponsibleInput" placeholder="مثال: م. أحمد عبد الله / إدارة الصيانة">
+        </div>
+        <div class="field">
+          <label>تاريخ الاستحقاق المستهدف (Target Due Date)</label>
+          <input id="fndModalDueDateInput" type="date">
+        </div>
+      </div>
+
+      <!-- Photo Evidence Section -->
+      <div style="margin-top:12px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+        <b style="display:block;font-size:12px;color:#0b1f3a;margin-bottom:8px"><i class="fa-solid fa-camera"></i> الأدلة والصور التوثيقية (Photo Evidence)</b>
+        <div class="row">
+          <div class="field" style="flex:1">
+            <label>صورة المخالفة (Before Photo)</label>
+            <input type="file" id="fndModalBeforePhotoFile" accept="image/*">
+            <div id="fndModalBeforePreview" style="margin-top:6px"></div>
+          </div>
+          <div class="field" style="flex:1">
+            <label>صورة الإغلاق والتصحيح (After / Closure Photo)</label>
+            <input type="file" id="fndModalAfterPhotoFile" accept="image/*">
+            <div id="fndModalAfterPreview" style="margin-top:6px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HSE Verification & Closure Section -->
+      <div style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">
+        <b style="display:block;font-size:12px;color:#047857;margin-bottom:8px"><i class="fa-solid fa-shield-check"></i> التحقق والإغلاق المعتمد من إدارة السلامة (HSE Verification &amp; Closure)</b>
+        <div class="row">
+          <div class="field">
+            <label>تاريخ الإغلاق الفعلي (Closure Date)</label>
+            <input id="fndModalClosureDateInput" type="date">
+          </div>
+          <div class="field">
+            <label>ملاحظة التحقق (HSE Verification Note)</label>
+            <input id="fndModalVerifyNoteInput" placeholder="تمت المعاينة الميدانية والتأكد من تمام الإصلاح مطابقاً للمواصفات">
+          </div>
+        </div>
+        <div class="field" style="margin-top:6px">
+          <label>تعليق الإغلاق النهائي (Closure Comment)</label>
+          <input id="fndModalClosureCommentInput" placeholder="ملاحظات ختامية حول فاعلية الإجراء التصحيحي...">
+        </div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="fndModalSyncCapaCheck" checked style="width:16px;height:16px;cursor:pointer">
+        <label for="fndModalSyncCapaCheck" style="margin:0;cursor:pointer;font-size:11.5px;color:#0b1f3a"><b>تسكين الملاحظة تلقائياً في سجل الـ CAPA العام (Sync with Master CAPA Register)</b></label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-light" id="cancelInspFindingModalBtn">إلغاء</button>
+      <button class="btn btn-green" id="saveInspFindingModalBtn" style="font-weight:700">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ وتحديث الملاحظة (Save Finding)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: TEMPLATE MANAGEMENT MODAL -->
+<div id="inspTemplateModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:850px">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <i class="fa-solid fa-sliders" style="color:var(--blue);font-size:18px"></i>
+        <b style="font-size:15px;color:var(--sut-navy)">إدارة قوالب ونماذج الفحص الميداني (Inspection Template Manager)</b>
+      </div>
+      <button class="modal-close-btn" id="closeInspTemplateModalBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;gap:10px;align-items:center;flex:1">
+          <label style="margin:0;font-weight:700;white-space:nowrap">اختر القالب للتعديل:</label>
+          <select id="tmplMgrSelect" style="font-weight:600;min-width:280px"></select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-blue" id="tmplMgrNewBtn" style="font-size:11px"><i class="fa-solid fa-plus"></i> + إنشاء قالب جديد</button>
+          <button class="btn btn-light" id="tmplMgrDuplicateBtn" style="font-size:11px"><i class="fa-solid fa-copy"></i> تكرار القالب</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>اسم القالب (Template Name)</label>
+          <input id="tmplMgrNameInput" placeholder="مثال: فحص وتفتيش المعامل الكيميائية">
+        </div>
+        <div class="field" style="flex:1">
+          <label>نوع الفحص المرتبط (Associated Type)</label>
+          <select id="tmplMgrTypeSelect"></select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>وصف القالب والهدف منه (Description)</label>
+        <input id="tmplMgrDescInput" placeholder="وصف موجز لنطاق التفتيش...">
+      </div>
+
+      <!-- Questions Builder in Template -->
+      <div style="margin-top:16px;border-top:1px solid #cbd5e1;padding-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <b style="color:#0b1f3a;font-size:13px"><i class="fa-solid fa-list-ol"></i> بنود وأسئلة الفحص بالقالب (<span id="tmplQuestionsCount">0</span> بنود)</b>
+          <button class="btn btn-green" id="tmplMgrAddQuestionBtn" style="font-size:11px"><i class="fa-solid fa-plus"></i> + إضافة بند فحص</button>
+        </div>
+        <div id="tmplQuestionsListContainer" style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-inline-end:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-light" id="cancelInspTemplateModalBtn">إغلاق</button>
+      <button class="btn btn-green" id="saveInspTemplateModalBtn" style="font-weight:700">
+        <i class="fa-solid fa-floppy-disk"></i> حفظ القالب (Save Template)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 4: FULL INSPECTION REPORT VIEW & COMBINED EXPORT MODAL -->
+<div id="inspReportModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:900px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <i class="fa-solid fa-file-invoice" style="color:var(--sut-navy);font-size:18px"></i>
+        <b style="font-size:15px;color:var(--sut-navy)" id="inspReportModalTitle">تقرير الفحص الميداني المعتمد (Official Inspection Report)</b>
+      </div>
+      <div class="actions no-print" style="margin:0">
+        <button class="btn btn-dark" id="inspReportWordBtn"><i class="fa-solid fa-file-word"></i> Word</button>
+        <button class="btn btn-red" id="inspReportPdfBtn"><i class="fa-solid fa-file-pdf"></i> PDF / Print</button>
+        <button class="btn btn-blue" id="inspReportPrintBtn"><i class="fa-solid fa-print"></i> Print</button>
+        <button class="modal-close-btn" id="closeInspReportModalBtn" style="margin-inline-start:6px">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;padding:20px;background:#f1f5f9" id="inspReportModalBody"></div>
+  </div>
+</div>
+
 <!-- External JavaScript -->
-<script src="script.js?v=2.1"></script>
+<script src="script.js?v=2.3"></script>
 </body>
 </html>

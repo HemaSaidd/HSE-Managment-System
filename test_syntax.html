@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><title>JS Syntax Check</title></head>
+<body>
+<h1>JavaScript Syntax Check</h1>
+<pre id="result" style="font-size:18px;color:red;padding:20px;background:#fff3f3;border:2px solid red;margin:20px">Checking...</pre>
+<script>
+try {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', 'script.js?nocache=' + Date.now(), false);
+  xhr.send();
+  if (xhr.status === 200) {
+    try {
+      new Function(xhr.responseText);
+      document.getElementById('result').style.color = 'green';
+      document.getElementById('result').style.background = '#f0fff0';
+      document.getElementById('result').style.borderColor = 'green';
+      document.getElementById('result').textContent = '✅ SUCCESS - No syntax errors found in script.js!\nFile size: ' + xhr.responseText.length + ' characters';
+    } catch (e) {
+      document.getElementById('result').textContent = '❌ SYNTAX ERROR FOUND:\n\n' + e.message + '\n\nLine info: ' + e.stack;
+    }
+  } else {
+    document.getElementById('result').textContent = '❌ Failed to load script.js - HTTP ' + xhr.status;
+  }
+} catch (e) {
+  document.getElementById('result').textContent = '❌ Error: ' + e.message;
+}
+</script>
+</body>
+</html>
